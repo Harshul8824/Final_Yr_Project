@@ -26,7 +26,7 @@ router.post('/processfile', async (req, res) => {
         delete ips; //Clear the memory
         const pythonExec = exec(`python ./scripts/checkIpBatch.py "${validIps.join(' ')}"`, { cwd: "./MLServerCode/" }, function (err, stdout, stderr) {
             if (stdout) {
-                dataToSend = stdout;
+                let dataToSend = stdout;
                 dataToSend = dataToSend.split(' ');
                 dataToSend.pop();
                 console.log(dataToSend.length + " " + whoisRecords.length);

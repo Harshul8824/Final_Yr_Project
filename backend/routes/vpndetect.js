@@ -4,11 +4,11 @@ const router = require('express').Router();
 // const path = require('path')
 const nmap = require('libnmap');
 const { spawn, exec, execFile } = require('child_process');
-const { response } = require('express');
+// const { response } = require('express'); // Removed unused import
 const axios = require('axios'); //added const
 var ip2proxy = require("ip2proxy-nodejs");
 const whoisjson = require('whois-json');
-const { route } = require('./whois');
+// const { route } = require('./whois'); // Removed unused import
 const fs = require('fs');
 
 const checkIp = './MLServerCode/scripts/checkIp.py'
@@ -215,7 +215,7 @@ router.route('/intelscore').post(async (req, res) => {
 
 //local search
 
-ip2proxy.Open("../data/large.BIN");
+// ip2proxy.Open("../data/large.BIN"); // Commented out - database file path needs to be configured
 /**  local search
 *
 * @param {string} host
@@ -305,7 +305,7 @@ router.post('/checkip', (req, res) => {
             return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
         }
         const data = fs.readFileSync(vpnIps, 'utf-8');
-        result = data.indexOf(host) > -1 ? 1 : 0;
+        let result = data.indexOf(host) > -1 ? 1 : 0;
         res.json({ result: result });
 
     } catch (error) {
@@ -319,18 +319,23 @@ router.post('/checkonlinedata', (req, res) => {
         return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
     }
     const data = fs.readFileSync(listOfIps, 'utf-8');
-    result = data.indexOf(host) > -1 ? 1:0;
+    let result = data.indexOf(host) > -1 ? 1:0;
     res.json({result:result});
 });
 
 
 router.route('/getrealip').post(function (req, res) {
-    // need access to IP address here
-    var ip = (req.headers['x-forwarded-for'] || '').split(',').pop().trim() || 
-         req.connection.remoteAddress || 
-         req.socket.remoteAddress || 
-         req.connection.socket.remoteAddress
-    console.log(ip,req.headers);
+    try {
+        // need access to IP address here
+        var ip = (req.headers['x-forwarded-for'] || '').split(',').pop().trim() || 
+             req.connection.remoteAddress || 
+             req.socket.remoteAddress || 
+             req.connection.socket.remoteAddress
+        console.log(ip,req.headers);
+        res.json({ ip: ip });
+    } catch (error) {
+        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
+    }
 })
 
 module.exports = router;

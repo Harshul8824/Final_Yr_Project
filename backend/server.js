@@ -3,8 +3,8 @@ const cors = require('cors');
 const fileUpload = require('express-fileupload');
 const schedule = require('node-schedule');
 const { genWhoisAndTrainModelCronJob, fetchOnlineDatasetsCronJob } = require('./utilities/cronJob')
-// require('dotenv').config();
-// const path = require('path')
+require('dotenv').config();
+const path = require('path');
 
 
 const app = express();

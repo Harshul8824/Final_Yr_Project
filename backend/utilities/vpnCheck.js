@@ -1,4 +1,4 @@
-const { report } = require('../routes/whois');
+// const { report } = require('../routes/whois'); // Removed unused import
 
 module.exports = {
     /**
@@ -21,7 +21,7 @@ module.exports = {
 
         for (let item in report) {
             // console.log(JSON.stringify(report[item].host, null, 2));
-            console.log(type(report))
+            console.log(typeof report)
             // return report[item].host
         }
         // console.log(JSON.stringify(report[0].host, null, 2));

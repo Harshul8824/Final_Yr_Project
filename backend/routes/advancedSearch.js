@@ -30,7 +30,7 @@ router.route('/quickscan').post(async(req, res) => {
         
         quickscan.on('error', function(error){
           console.log(error);
-          res.status(500).json({ msg: "Some error occured", err: err.message })
+          res.status(500).json({ msg: "Some error occured", err: error.message })
         });
         
         quickscan.startScan();
@@ -65,7 +65,7 @@ router.route('/quickscan').post(async(req, res) => {
         
         quickscan.on('error', function(error){
           console.log(error);
-          res.status(500).json({ msg: "Some error occured", err: err.message })
+          res.status(500).json({ msg: "Some error occured", err: error.message })
         });
         
         quickscan.startScan();
