@@ -1,6 +1,6 @@
-# VPN Detection System - Complete Project
+# VPN Detection System - MERN Stack Project
 
-A comprehensive MERN stack application for VPN and proxy detection with machine learning capabilities.
+A comprehensive MERN stack application for VPN and proxy detection using pure JavaScript technologies.
 
 ## 🏗️ Project Structure
 
@@ -9,7 +9,6 @@ Final_Yr_Project/
 ├── backend/                 # Node.js Express API
 │   ├── routes/             # API endpoints
 │   ├── utilities/          # Helper functions
-│   ├── MLServerCode/       # Python ML scripts
 │   ├── server.js           # Main server file
 │   └── package.json        # Backend dependencies
 ├── frontend/               # React.js UI (JavaScript)
@@ -158,9 +157,9 @@ REACT_APP_API_URL=http://localhost:5000/api
 ```
 
 ### Dependencies
-- **Backend**: Express, Axios, CORS, Node-schedule
-- **Frontend**: React.js, JavaScript, Tailwind CSS, Axios
-- **ML**: Python, pandas, scikit-learn, joblib
+- **Backend**: Express, Axios, CORS, LibNmap, IP2Proxy
+- **Frontend**: React.js, JavaScript, Custom CSS, Axios
+- **Database**: File-based storage (no external database required)
 
 ## 🚀 Deployment
 
@@ -263,4 +262,4 @@ This project is developed for educational purposes as part of a final year proje
 
 ---
 
-**Status**: ✅ Backend Complete | ✅ Frontend Complete (React.js) | 🚧 Additional Features Pending
+**Status**: ✅ Pure MERN Stack Complete | ✅ ML Removed | ✅ All Features Working

@@ -45,13 +45,5 @@ module.exports = {
             return false;
         }
     },
-    MLModel2Check: function (host) {
-        let toCheck = 'https://ipqualityscore.com/api/json/ip/zUqnfFUGTHCSwQOF7TO3mb8oJHf5JF0E/' + host;
-        return axios.get(toCheck);
-    },
-    MLModel1Check: function (host) {
-        let toCheck = 'http://check.getipintel.net/check.php?ip='+host+'&contact=aniket.g@gmail.com';
-        
-        return axios.get(toCheck);
-    },
+    // ML functions removed - using MERN stack only
 }

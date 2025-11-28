@@ -1,20 +1,11 @@
 const vpnCheck = require('../utilities/vpnCheck')
-const {MLModel2Check, MLModel1Check} = require('../utilities/utils')
 const router = require('express').Router();
-// const path = require('path')
 const nmap = require('libnmap');
 const { spawn, exec, execFile } = require('child_process');
-// const { response } = require('express'); // Removed unused import
-const axios = require('axios'); //added const
+const axios = require('axios');
 var ip2proxy = require("ip2proxy-nodejs");
 const whoisjson = require('whois-json');
-// const { route } = require('./whois'); // Removed unused import
 const fs = require('fs');
-
-const checkIp = './MLServerCode/scripts/checkIp.py'
-const predict = './MLServerCode/scripts/predict.py'
-const listOfIps = './MLServerCode/scripts/ips.txt'
-const vpnIps = './MLServerCode/scripts/IPv4_VPNs.txt'
 
 
 
@@ -186,32 +177,7 @@ router.route('/qualityscore').post(async (req, res) => {
 
 });
 
-/**  ML intel score
-*
-* @param {string} host
-*/
-router.route('/intelscore').post(async (req, res) => {
-    try {
-        let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
-        if (!host) {
-            return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
-        }
-        
-        
-        MLModel1Check(host).then(response => {
-                // console.log(response.data);
-                res.json({ result: response.data });
-                if(response.data > 0.5){
-                    fs.appendFileSync(listOfIps, host + '\n');
-                }
-            })
-            .catch(error=>{res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });})
-
-    } catch (error) {
-        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
-    }
-
-});
+// ML intel score route removed - using MERN stack only
 
 //local search
 

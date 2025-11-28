@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Shield, Search, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { vpnDetectionService } from '../services/api';
 import ResultCard from './ResultCard';
+import DebugInfo from './DebugInfo';
 
 const VpnDetection = () => {
   const [host, setHost] = useState('');
@@ -22,12 +23,7 @@ const VpnDetection = () => {
       description: 'Get IP quality score and fraud detection',
       icon: Shield,
     },
-    {
-      id: 'intelscore',
-      name: 'Intel Score',
-      description: 'ML-based intelligence score for IP analysis',
-      icon: AlertTriangle,
-    },
+    // ML intel score removed - using MERN stack only
     {
       id: 'ipsearch',
       name: 'Local IP Search',
@@ -59,7 +55,7 @@ const VpnDetection = () => {
     setError(null);
     setResults({});
 
-    // Run all detection methods
+    // Run all detection methods with better error handling
     for (const method of detectionMethods) {
       setLoading(prev => ({ ...prev, [method.id]: true }));
       
@@ -73,9 +69,7 @@ const VpnDetection = () => {
           case 'qualityscore':
             response = await vpnDetectionService.qualityScore(host.trim());
             break;
-          case 'intelscore':
-            response = await vpnDetectionService.intelScore(host.trim());
-            break;
+          // ML intel score removed - using MERN stack only
           case 'ipsearch':
             response = await vpnDetectionService.ipSearch(host.trim());
             break;
@@ -89,12 +83,31 @@ const VpnDetection = () => {
             continue;
         }
         
-        setResults(prev => ({ ...prev, [method.id]: response }));
+        // Validate response before setting
+        if (response && typeof response === 'object') {
+          setResults(prev => ({ ...prev, [method.id]: response }));
+        } else {
+          setResults(prev => ({ 
+            ...prev, 
+            [method.id]: { 
+              error: 'Invalid response received from server',
+              result: null
+            } 
+          }));
+        }
       } catch (err) {
+        console.error(`Error in ${method.name}:`, err);
+        let errorMessage;
+        if (err.isNetworkError) {
+          errorMessage = 'Network Error: Unable to connect to the server. Please ensure the backend is running on port 5000.';
+        } else {
+          errorMessage = err.response?.data?.msg || err.message || 'An error occurred';
+        }
         setResults(prev => ({ 
           ...prev, 
           [method.id]: { 
-            error: err.response?.data?.msg || err.message || 'An error occurred' 
+            error: errorMessage,
+            result: null
           } 
         }));
       } finally {
@@ -115,12 +128,31 @@ const VpnDetection = () => {
       return <XCircle className="h-5 w-5 text-red-500" />;
     }
     
-    if (result.result === 1 || result.status === 'Host is Up') {
+    // Check for VPN/Proxy detection results
+    if (result.result === 1 || result.result === true) {
       return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
     }
     
-    if (result.result === 0 || result.status === 'Host is down') {
+    if (result.result === 0 || result.result === false) {
       return <CheckCircle className="h-5 w-5 text-green-500" />;
+    }
+    
+    // Check for port scan results
+    if (result.status === 'Host is Up' && result.ports && result.ports.length > 0) {
+      return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+    }
+    
+    if (result.status === 'Host is down') {
+      return <CheckCircle className="h-5 w-5 text-green-500" />;
+    }
+    
+    // Check for quality score results
+    if (result.fraud_score !== undefined) {
+      if (result.fraud_score > 0.5) {
+        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      } else {
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      }
     }
     
     return <Shield className="h-5 w-5 text-gray-500" />;
@@ -131,12 +163,31 @@ const VpnDetection = () => {
       return 'Error';
     }
     
-    if (result.result === 1 || result.status === 'Host is Up') {
-      return 'Suspicious';
+    // Check for VPN/Proxy detection results
+    if (result.result === 1 || result.result === true) {
+      return 'VPN/Proxy Detected';
     }
     
-    if (result.result === 0 || result.status === 'Host is down') {
+    if (result.result === 0 || result.result === false) {
       return 'Clean';
+    }
+    
+    // Check for port scan results
+    if (result.status === 'Host is Up' && result.ports && result.ports.length > 0) {
+      return 'Open Ports Found';
+    }
+    
+    if (result.status === 'Host is down') {
+      return 'Host Down';
+    }
+    
+    // Check for quality score results
+    if (result.fraud_score !== undefined) {
+      if (result.fraud_score > 0.5) {
+        return 'High Risk';
+      } else {
+        return 'Low Risk';
+      }
     }
     
     return 'Unknown';
@@ -247,12 +298,15 @@ const VpnDetection = () => {
               )}
 
               {result && !isLoading && (
-                <ResultCard
-                  title=""
-                  data={result}
-                  loading={false}
-                  error={result.error || null}
-                />
+                <>
+                  <ResultCard
+                    title=""
+                    data={result}
+                    loading={false}
+                    error={result.error || null}
+                  />
+                  <DebugInfo result={result} methodName={method.name} />
+                </>
               )}
             </div>
           );

@@ -25,7 +25,11 @@ const WhoisLookup = () => {
       const response = await whoisService.getRecord(host.trim());
       setResult(response);
     } catch (err) {
-      setError(err.response?.data?.msg || err.message || 'An error occurred');
+      if (err.isNetworkError) {
+        setError('Network Error: Unable to connect to the server. Please ensure the backend is running on port 5000.');
+      } else {
+        setError(err.response?.data?.msg || err.message || 'An error occurred');
+      }
     } finally {
       setLoading(false);
     }

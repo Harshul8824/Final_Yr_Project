@@ -7,7 +7,7 @@
 
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://final-year-project-6v7g.onrender.com';
 const ENDPOINT = '/api/whois/getrecord';
 
 // Test cases

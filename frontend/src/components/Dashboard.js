@@ -23,29 +23,29 @@ const Dashboard = () => {
     }
   };
 
-  const stats = [
-    {
-      name: 'Total Data Points',
-      value: analytics?.totalData || '0',
-      icon: BarChart3,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
-    },
-    {
-      name: 'Training Data',
-      value: analytics?.trainData || '0',
-      icon: Activity,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
-    },
-    {
-      name: 'Test Data',
-      value: analytics?.testData || '0',
-      icon: BarChart3,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
-    },
-  ];
+  // const stats = [
+  //   {
+  //     name: 'Total Data Points',
+  //     value: analytics?.totalData || '0',
+  //     icon: BarChart3,
+  //     color: 'text-blue-600',
+  //     bgColor: 'bg-blue-100',
+  //   },
+  //   {
+  //     name: 'Training Data',
+  //     value: analytics?.trainData || '0',
+  //     icon: Activity,
+  //     color: 'text-green-600',
+  //     bgColor: 'bg-green-100',
+  //   },
+  //   {
+  //     name: 'Test Data',
+  //     value: analytics?.testData || '0',
+  //     icon: BarChart3,
+  //     color: 'text-purple-600',
+  //     bgColor: 'bg-purple-100',
+  //   },
+  // ];
 
   const features = [
     {
@@ -114,26 +114,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.name} className="card">
-              <div className="flex items-center">
-                <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                  <Icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       {/* Features Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {features.map((feature) => {
@@ -148,32 +128,8 @@ const Dashboard = () => {
             </div>
           );
         })}
-      </div>
+      </div> 
 
-      {/* Analytics Section */}
-      {analytics && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ML Logs */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">ML Model Logs</h3>
-            <div className="bg-gray-50 rounded-md p-4 max-h-64 overflow-y-auto">
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap">
-                {analytics.mlLogs || 'No ML logs available'}
-              </pre>
-            </div>
-          </div>
-
-          {/* Data Generation Logs */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Generation Logs</h3>
-            <div className="bg-gray-50 rounded-md p-4 max-h-64 overflow-y-auto">
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap">
-                {analytics.generateDataLogs || 'No data generation logs available'}
-              </pre>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Quick Actions */}
       <div className="mt-8 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-lg p-6">

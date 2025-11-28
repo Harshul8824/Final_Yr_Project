@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import WhoisLookup from './components/WhoisLookup';
 import VpnDetection from './components/VpnDetection';
+import NetworkStatus from './components/NetworkStatus';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -63,6 +64,9 @@ function App() {
       <main className="py-6">
         {renderPage()}
       </main>
+      
+      {/* Network Status */}
+      <NetworkStatus />
       
       {/* Toast notifications */}
       <Toaster

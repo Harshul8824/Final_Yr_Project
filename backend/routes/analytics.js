@@ -1,22 +1,23 @@
 const router = require('express').Router();
-const fs = require('fs');
-const { route } = require('./whois');
-const analyticsFile = "./MLServerCode/analytics.txt";
-const mlModelLogsFile = "./MLServerCode/logs/mlModelLogs.txt";
-const generateDataLogsFile = "./MLServerCode/logs/generateDataLogs.txt";
 
 router.get('/getallanalytics', async (req, res) => {
     try {
-        let analyticsData = fs.readFileSync(analyticsFile, 'utf-8');
-        let mlLogs = fs.readFileSync(mlModelLogsFile, 'utf-8');
-        let generateDataLogs = fs.readFileSync(generateDataLogsFile, 'utf-8');
-        analyticsData = analyticsData.split(' ');
+        // MERN stack analytics - no ML data
         const result = {
-            totalData: analyticsData[0],
-            trainData: analyticsData[1],
-            testData: analyticsData[2],
-            generateDataLogs: generateDataLogs,
-            mlLogs: mlLogs
+            totalData: 0,
+            trainData: 0,
+            testData: 0,
+            generateDataLogs: "ML functionality removed - using MERN stack only",
+            mlLogs: "ML functionality removed - using MERN stack only",
+            systemStatus: "MERN Stack VPN Detection System",
+            features: [
+                "WHOIS Lookup",
+                "VPN Port Scanning", 
+                "IP Quality Score",
+                "CIDR Range Checking",
+                "Batch Processing",
+                "Network Scanning"
+            ]
         };
         res.json(result);
 

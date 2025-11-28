@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://final-year-project-6v7g.onrender.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -9,6 +9,9 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Add retry configuration
+  retry: 3,
+  retryDelay: 1000,
 });
 
 // Request interceptor
@@ -25,10 +28,27 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
+    // Log successful responses for debugging
+    console.log(`API Success: ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data);
     return response;
   },
   (error) => {
-    console.error('API Error:', error.response?.data || error.message);
+    console.error('API Error:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+
+    // Handle network errors specifically
+    if (!error.response) {
+      // Network error - backend not running or connection failed
+      const networkError = new Error('Network Error: Unable to connect to the server. Please ensure the backend is running on port 5000.');
+      networkError.isNetworkError = true;
+      return Promise.reject(networkError);
+    }
+
     return Promise.reject(error);
   }
 );
@@ -57,10 +77,7 @@ export const vpnDetectionService = {
     return response.data;
   },
   
-  intelScore: async (host) => {
-    const response = await api.post('/vpndetect/intelscore', { host });
-    return response.data;
-  },
+  // ML intel score removed - using MERN stack only
   
   ipSearch: async (host) => {
     const response = await api.post('/vpndetect/ipsearch', { host });

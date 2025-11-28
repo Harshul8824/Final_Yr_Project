@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
-const schedule = require('node-schedule');
-const { genWhoisAndTrainModelCronJob, fetchOnlineDatasetsCronJob } = require('./utilities/cronJob')
 require('dotenv').config();
 const path = require('path');
 
@@ -10,7 +8,14 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+// app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://final-year-project-os5j.vercel.app/"
+  ],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
@@ -31,13 +36,5 @@ app.use('/api/advancedsearch', advancedSearch);
 
 app.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
-});
-
-var cron1 = schedule.scheduleJob('10 * * * *', function () {
-    console.log("Fetch online dataset cron running");
-    fetchOnlineDatasetsCronJob();
-});
-var cron2 = schedule.scheduleJob('30 * * * *', function () {
-    console.log("Generate whois and train model cron running");
-    genWhoisAndTrainModelCronJob();
+    console.log(`MERN Stack VPN Detection System - Backend Ready!`);
 });

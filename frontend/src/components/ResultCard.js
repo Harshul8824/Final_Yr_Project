@@ -47,23 +47,51 @@ const ResultCard = ({ title, data, loading, error }) => {
     );
   }
 
+  const formatValue = (value) => {
+    if (value === null || value === undefined) {
+      return 'N/A';
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    if (typeof value === 'number') {
+      return value.toString();
+    }
+    if (typeof value === 'object') {
+      if (Array.isArray(value)) {
+        return value.length > 0 ? value.join(', ') : 'None';
+      }
+      return JSON.stringify(value, null, 2);
+    }
+    return String(value);
+  };
+
+  const formatKey = (key) => {
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
+  };
+
   return (
     <div className="card">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
       <div className="space-y-3">
         {typeof data === 'object' ? (
-          Object.entries(data).map(([key, value]) => (
-            <div key={key} className="flex justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
-              <span className="text-sm font-medium text-gray-600 capitalize">
-                {key.replace(/([A-Z])/g, ' $1').trim()}:
-              </span>
-              <span className="text-sm text-gray-900 text-right max-w-xs break-words">
-                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-              </span>
-            </div>
-          ))
+          Object.entries(data)
+            .filter(([key, value]) => value !== null && value !== undefined && value !== '')
+            .map(([key, value]) => (
+              <div key={key} className="flex justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
+                <span className="text-sm font-medium text-gray-600 capitalize">
+                  {formatKey(key)}:
+                </span>
+                <span className="text-sm text-gray-900 text-right max-w-xs break-words">
+                  {formatValue(value)}
+                </span>
+              </div>
+            ))
         ) : (
-          <div className="text-sm text-gray-900">{String(data)}</div>
+          <div className="text-sm text-gray-900">{formatValue(data)}</div>
         )}
       </div>
     </div>
