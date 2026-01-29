@@ -1,12 +1,67 @@
 const vpnCheck = require('../utilities/vpnCheck')
 const router = require('express').Router();
 const nmap = require('libnmap');
+const path = require('path');
 const { spawn, exec, execFile } = require('child_process');
 const axios = require('axios');
 var ip2proxy = require("ip2proxy-nodejs");
 const whoisjson = require('whois-json');
 const fs = require('fs');
 const utils = require('../utilities/utils');
+
+// Optional file paths for VPN/IP lists (create these files or set env vars to enable)
+const vpnIps = process.env.VPN_IPS_PATH || path.join(__dirname, '..', 'MLServerCode', 'scripts', 'IPv4_VPNs.txt');
+const listOfIps = process.env.LIST_OF_IPS_PATH || path.join(__dirname, '..', 'MLServerCode', 'scripts', 'ips.txt');
+const ip2proxyDbPath = process.env.IP2PROXY_DATABASE_PATH || path.join(__dirname, '..', 'data', 'PX11-Lite.BIN');
+
+// Tor exit node list (public, no API key) — cache for 10 minutes
+const TOR_EXIT_LIST_URL = 'https://check.torproject.org/torbulkexitlist';
+let torExitListCache = { ips: null, fetchedAt: 0 };
+const TOR_CACHE_TTL_MS = 10 * 60 * 1000;
+
+/** Check if IP appears as an exact line in file (avoids indexOf false positives like 185.220.101.1 matching 185.220.101.10) */
+function ipInFileLines(filePath, ip) {
+    try {
+        const data = fs.readFileSync(filePath, 'utf-8');
+        const lines = data.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        return lines.includes(ip);
+    } catch (e) {
+        return false;
+    }
+}
+
+/** Resolve host to IP (returns host if already valid IP) */
+async function resolveToIp(host) {
+    const h = (host && typeof host === 'string') ? host.trim() : '';
+    if (!h) return null;
+    if (utils.isValidIPaddress(h)) return h;
+    try {
+        const dns = require('dns');
+        const { promisify } = require('util');
+        const lookup = promisify(dns.lookup);
+        const resolved = await lookup(h, { family: 4 });
+        return resolved.address;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function getTorExitIps() {
+    if (torExitListCache.ips && (Date.now() - torExitListCache.fetchedAt) < TOR_CACHE_TTL_MS) {
+        return torExitListCache.ips;
+    }
+    try {
+        const res = await axios.get(TOR_EXIT_LIST_URL, { timeout: 15000, responseType: 'text' });
+        const text = Buffer.isBuffer(res.data) ? res.data.toString('utf8') : (typeof res.data === 'string' ? res.data : String(res.data));
+        const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        const ips = new Set(lines);
+        torExitListCache = { ips, fetchedAt: Date.now() };
+        return ips;
+    } catch (e) {
+        if (torExitListCache.ips) return torExitListCache.ips;
+        return new Set();
+    }
+}
 
 
 
@@ -122,9 +177,29 @@ router.route('/vpnports').post(async (req, res) => {
                                 return p?.item?.protocol || p?.protocol || 'tcp';
                             };
 
-                            // Helper function to safely extract state
+                            // Helper function to safely extract state - RETURNS STRING
                             const extractState = (p) => {
-                                return p?.item?.state || p?.state || 'open';
+                                const stateData = p?.state;
+                                
+                                // If it's already a string
+                                if (typeof stateData === 'string') return stateData;
+                                
+                                // If it's an array (common nmap format)
+                                if (Array.isArray(stateData)) {
+                                    const stateObj = stateData[0];
+                                    if (stateObj?.item?.state) return stateObj.item.state;
+                                    if (stateObj?.state) return stateObj.state;
+                                    return 'unknown';
+                                }
+                                
+                                // If it's an object
+                                if (stateData && typeof stateData === 'object') {
+                                    if (stateData.item?.state) return stateData.item.state;
+                                    if (stateData.state) return stateData.state;
+                                }
+                                
+                                // Fallback
+                                return p?.item?.state || 'open';
                             };
 
                             // Helper function to safely extract service
@@ -140,7 +215,7 @@ router.route('/vpnports').post(async (req, res) => {
                                     return {
                                         port: portNum,
                                         protocol: extractProtocol(p),
-                                        state: extractState(p),
+                                        state: extractState(p),  // Now returns string
                                         service: extractService(p)
                                     };
                                 }).filter(p => p !== null);
@@ -151,7 +226,7 @@ router.route('/vpnports').post(async (req, res) => {
                                     openPorts = [{
                                         port: portNum,
                                         protocol: extractProtocol(ports.port),
-                                        state: extractState(ports.port),
+                                        state: extractState(ports.port),  // Now returns string
                                         service: extractService(ports.port)
                                     }];
                                 }
@@ -162,7 +237,7 @@ router.route('/vpnports').post(async (req, res) => {
                                     openPorts = [{
                                         port: portNum,
                                         protocol: extractProtocol(ports.port),
-                                        state: extractState(ports.port),
+                                        state: extractState(ports.port),  // Now returns string
                                         service: extractService(ports.port)
                                     }];
                                 }
@@ -177,20 +252,10 @@ router.route('/vpnports').post(async (req, res) => {
             }
         }
 
-        // Count only truly OPEN ports (not filtered or closed)
-const trulyOpenPorts = openPorts.filter(p => {
-    // Extract state - handle both array and direct object formats
-    let state;
-    if (Array.isArray(p.state)) {
-        state = p.state[0]?.item?.state || p.state[0];
-    } else if (typeof p.state === 'object' && p.state !== null) {
-        state = p.state.item?.state || p.state;
-    } else {
-        state = p.state;
-    }
-    return state === 'open';
-});
-
+        // Count only truly OPEN ports (now state is a string)
+        const trulyOpenPorts = openPorts.filter(p => {
+            return p.state === 'open';
+        });
 
         // Build response
         const response = {
@@ -280,59 +345,117 @@ router.route('/checkcidr').post(async (req, res) => {
 
 });
 
-/**  gives ip type & fraud score
-*
-* @param {string} host
-*/
+/** Quality Score — local-only: aggregates VPN List + Online Data + Local IP Search (no external API key)
+ * @param {string} host
+ */
 router.route('/qualityscore').post(async (req, res) => {
     try {
         let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
         if (!host) {
-            return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
+            return res.status(400).json({ msg: "Please provide a host name or IP address" });
         }
-        
-        // let key = mcfLlGm2jceQIvqZpc4hmKzkLuuUHtK8;
-        
-        MLModel2Check(host).then(response=>{
-                // console.log(response.data);
-                res.json({ result: response.data });
-            })
-            .catch(error=>{res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });})
+        host = host.trim();
 
+        const ip = await resolveToIp(host);
+        if (!ip) {
+            return res.status(400).json({ msg: "Could not resolve hostname to IP.", err: "RESOLVE_FAILED" });
+        }
+
+        let vpnListHit = false;
+        let onlineListHit = false;
+        let localProxyHit = false;
+        let torExitHit = false;
+
+        // VPN List check — exact line match (no substring false positives)
+        if (fs.existsSync(vpnIps)) {
+            vpnListHit = ipInFileLines(vpnIps, ip);
+        }
+
+        // Online list check — exact line match
+        if (fs.existsSync(listOfIps)) {
+            onlineListHit = ipInFileLines(listOfIps, ip);
+        }
+
+        // Tor exit node check (public list, no API key)
+        try {
+            const torIps = await getTorExitIps();
+            torExitHit = torIps.has(ip);
+        } catch (e) { /* ignore */ }
+
+        // Local IP2Proxy check (0=not proxy, 1=proxy, 2=datacenter — treat 1 or 2 as hit)
+        if (fs.existsSync(ip2proxyDbPath)) {
+            try {
+                ip2proxy.Open(ip2proxyDbPath);
+                const val = ip2proxy.isProxy(ip);
+                localProxyHit = (val === 1 || val === 2 || val === true);
+            } catch (e) { /* ignore */ }
+        }
+
+        const anyHit = vpnListHit || onlineListHit || localProxyHit || torExitHit;
+        const fraud_score = anyHit ? 100 : 0;
+
+        res.json({
+            result: {
+                proxy: localProxyHit,
+                vpn: vpnListHit || onlineListHit || torExitHit,
+                torExit: torExitHit,
+                fraud_score,
+                success: true,
+                source: "local"
+            },
+            note: "Based on local checks + Tor exit list (VPN list, online list, proxy DB, Tor). No external API key required."
+        });
     } catch (error) {
-        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
+        res.status(500).json({ msg: "Quality Score check failed.", err: error.message || String(error) });
     }
-
 });
 
 // ML intel score route removed - using MERN stack only
 
 //local search
 
-// ip2proxy.Open("../data/large.BIN"); // Commented out - database file path needs to be configured
-/**  local search
-*
-* @param {string} host
-*/
+/** Local IP Search — IP2Proxy DB if configured, else Tor exit list (no API key)
+ * @param {string} host
+ */
 router.route('/ipsearch').post(async (req, res) => {
     try {
         let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
         if (!host) {
-            return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
+            return res.status(400).json({ msg: "Please provide a host name or IP address" });
         }
-        
-        isProxy = ip2proxy.isProxy(host)
-        // let key = mcfLlGm2jceQIvqZpc4hmKzkLuuUHtK8;
-        console.log("isProxy: " + ip2proxy.isProxy(host));
-        console.log("GetModuleVersion: " + ip2proxy.getModuleVersion());
-        console.log("GetPackageVersion: " + ip2proxy.getPackageVersion());
-        console.log("GetDatabaseVersion: " + ip2proxy.getDatabaseVersion());
-        res.json({result:isProxy});
+        host = host.trim();
 
+        const ip = await resolveToIp(host);
+        if (!ip) {
+            return res.json({ result: 0, note: "Could not resolve hostname to IP." });
+        }
+
+        // If IP2Proxy DB exists, use it (0=not proxy, 1=proxy, 2=datacenter)
+        if (fs.existsSync(ip2proxyDbPath)) {
+            try {
+                ip2proxy.Open(ip2proxyDbPath);
+                const val = ip2proxy.isProxy(ip);
+                const result = (val === 1 || val === 2 || val === true) ? 1 : 0;
+                return res.json({ result });
+            } catch (openErr) {
+                return res.json({ result: 0, note: "Could not open IP2Proxy database. Check file path and format." });
+            }
+        }
+
+        // Fallback: check Tor exit list (so Local IP Search still works without DB)
+        try {
+            const torIps = await getTorExitIps();
+            const result = torIps.has(ip) ? 1 : 0;
+            return res.json({
+                result,
+                note: result === 1 ? "IP found in Tor exit list (proxy DB not configured)." : "Checked Tor list only (proxy DB not configured)."
+            });
+        } catch (e) {
+            return res.json({ result: 0, note: "Local proxy DB not configured. Set IP2PROXY_DATABASE_PATH or add PX11-Lite.BIN to backend/data/." });
+        }
     } catch (error) {
-        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
+        res.status(500).json({ msg: "Local IP search failed.", err: error.message });
     }
-
 });
 
 /**check(ml) running for organisation
@@ -392,29 +515,83 @@ router.route('/checkorg').post(async (req, res) => {
     }
 
 });
-router.post('/checkip', (req, res) => {
+router.post('/checkip', async (req, res) => {
     try {
         let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
         if (!host) {
-            return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
+            return res.status(400).json({ msg: "Please provide a host name or IP address" });
         }
-        const data = fs.readFileSync(vpnIps, 'utf-8');
-        let result = data.indexOf(host) > -1 ? 1 : 0;
-        res.json({ result: result });
+        host = host.trim();
 
+        const ip = await resolveToIp(host);
+        if (!ip) {
+            return res.status(400).json({ msg: "Could not resolve hostname to IP." });
+        }
+
+        // If VPN list file exists, check with exact line match (no substring false positives)
+        if (fs.existsSync(vpnIps)) {
+            const result = ipInFileLines(vpnIps, ip) ? 1 : 0;
+            return res.json({ result });
+        }
+
+        // Fallback: check Tor exit list (so VPN List Check still works without file)
+        try {
+            const torIps = await getTorExitIps();
+            const result = torIps.has(ip) ? 1 : 0;
+            return res.json({
+                result,
+                note: result === 1 ? "IP found in Tor exit list (VPN list file not configured)." : "Checked Tor list only (VPN list file not configured)."
+            });
+        } catch (e) {
+            return res.json({ result: 0, note: "VPN list file not configured. Add IPv4_VPNs.txt to backend/MLServerCode/scripts/ to enable." });
+        }
     } catch (error) {
         res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
-
     }
 });
-router.post('/checkonlinedata', (req, res) => {
-    let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
-    if (!host) {
-        return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
+
+router.post('/checkonlinedata', async (req, res) => {
+    try {
+        let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
+        if (!host) {
+            return res.status(400).json({ msg: "Please provide a host name or IP address" });
+        }
+        host = host.trim();
+
+        // Resolve hostname to IP if needed
+        let ip = host;
+        if (!utils.isValidIPaddress(host)) {
+            try {
+                const dns = require('dns');
+                const { promisify } = require('util');
+                const lookup = promisify(dns.lookup);
+                const resolved = await lookup(host, { family: 4 });
+                ip = resolved.address;
+            } catch (dnsErr) {
+                return res.json({ result: 0, note: "Could not resolve hostname to IP." });
+            }
+        }
+
+        // If local list file exists, use exact line match (no substring false positives)
+        if (fs.existsSync(listOfIps)) {
+            const result = ipInFileLines(listOfIps, ip) ? 1 : 0;
+            return res.json({ result });
+        }
+
+        // Else check against Tor exit node list (public, no API key)
+        try {
+            const torIps = await getTorExitIps();
+            const result = torIps.has(ip) ? 1 : 0;
+            return res.json({
+                result,
+                note: result === 1 ? "IP found in Tor exit node list (high risk)." : "Checked against Tor exit node list; not in list."
+            });
+        } catch (e) {
+            return res.json({ result: 0, note: "Online list file not configured and Tor list unavailable. Add ips.txt to backend/MLServerCode/scripts/ or retry later." });
+        }
+    } catch (error) {
+        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
     }
-    const data = fs.readFileSync(listOfIps, 'utf-8');
-    let result = data.indexOf(host) > -1 ? 1:0;
-    res.json({result:result});
 });
 
 
