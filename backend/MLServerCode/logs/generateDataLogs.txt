@@ -1,9 +1,0 @@
-0 total no of IPs processed
-
-        =============== END ====================
-        nProcessed: 0
-        nNotProcessed: 0
-        nFetched: 0
-        nFailed: 0
-        ========================================
-        

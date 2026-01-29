@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://final-year-project-6v7g.onrender.com/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -66,39 +66,39 @@ export const vpnDetectionService = {
     const response = await api.post('/vpndetect/vpnports', { host });
     return response.data;
   },
-  
+
   checkCidr: async (host) => {
     const response = await api.post('/vpndetect/checkcidr', { host });
     return response.data;
   },
-  
+
   qualityScore: async (host) => {
     const response = await api.post('/vpndetect/qualityscore', { host });
     return response.data;
   },
-  
+
   // ML intel score removed - using MERN stack only
-  
+
   ipSearch: async (host) => {
     const response = await api.post('/vpndetect/ipsearch', { host });
     return response.data;
   },
-  
+
   checkOrg: async (host) => {
     const response = await api.post('/vpndetect/checkorg', { host });
     return response.data;
   },
-  
+
   checkIp: async (host) => {
     const response = await api.post('/vpndetect/checkip', { host });
     return response.data;
   },
-  
+
   checkOnlineData: async (host) => {
     const response = await api.post('/vpndetect/checkonlinedata', { host });
     return response.data;
   },
-  
+
   getRealIp: async () => {
     const response = await api.post('/vpndetect/getrealip', {});
     return response.data;
@@ -109,7 +109,7 @@ export const batchProcessService = {
   processFile: async (file) => {
     const formData = new FormData();
     formData.append('ipFile', file);
-    
+
     const response = await api.post('/batchprocess/processfile', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -131,7 +131,7 @@ export const advancedSearchService = {
     const response = await api.post('/advancedsearch/quickscan', { host });
     return response.data;
   },
-  
+
   fullScan: async (host) => {
     const response = await api.post('/advancedsearch/fullscan', { host });
     return response.data;

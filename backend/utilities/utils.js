@@ -6,23 +6,24 @@ module.exports = {
      * @param {String} url 
      */
     extractHostname: function (url) {
-
         var hostname;
-        //find & remove protocol (http, ftp, etc.) and get hostname
+        
+        // Find & remove protocol (http, ftp, etc.) and get hostname
         if (url.indexOf("//") > -1) {
             hostname = url.split('/')[2];
         }
         else {
             hostname = url.split('/')[0];
         }
-        //find & remove port number
+        
+        // Find & remove port number
         hostname = hostname.split(':')[0];
-        //find & remove "?"
+        
+        // Find & remove "?"
         hostname = hostname.split('?')[0];
-        //remove the subdomains
-        let hostnameArr = hostname.split(".");
-        if (hostnameArr.length > 2)
-            hostname = hostnameArr[hostnameArr.length - 2] + "." + hostnameArr[hostnameArr.length - 1];
+        
+        // Return full hostname (DO NOT remove subdomains)
+        // Multi-level TLDs like .ac.in, .co.uk, .co.in need complete domain
         return hostname;
     },
     isValidIPaddress: function (ipaddress) {
@@ -47,3 +48,4 @@ module.exports = {
     },
     // ML functions removed - using MERN stack only
 }
+    

@@ -46,7 +46,7 @@ const VpnDetection = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!host.trim()) {
       setError('Please enter a hostname or IP address');
       return;
@@ -58,10 +58,10 @@ const VpnDetection = () => {
     // Run all detection methods with better error handling
     for (const method of detectionMethods) {
       setLoading(prev => ({ ...prev, [method.id]: true }));
-      
+
       try {
         let response;
-        
+
         switch (method.id) {
           case 'vpnports':
             response = await vpnDetectionService.vpnPorts(host.trim());
@@ -82,17 +82,17 @@ const VpnDetection = () => {
           default:
             continue;
         }
-        
+
         // Validate response before setting
         if (response && typeof response === 'object') {
           setResults(prev => ({ ...prev, [method.id]: response }));
         } else {
-          setResults(prev => ({ 
-            ...prev, 
-            [method.id]: { 
+          setResults(prev => ({
+            ...prev,
+            [method.id]: {
               error: 'Invalid response received from server',
               result: null
-            } 
+            }
           }));
         }
       } catch (err) {
@@ -103,12 +103,12 @@ const VpnDetection = () => {
         } else {
           errorMessage = err.response?.data?.msg || err.message || 'An error occurred';
         }
-        setResults(prev => ({ 
-          ...prev, 
-          [method.id]: { 
+        setResults(prev => ({
+          ...prev,
+          [method.id]: {
             error: errorMessage,
             result: null
-          } 
+          }
         }));
       } finally {
         setLoading(prev => ({ ...prev, [method.id]: false }));
@@ -127,25 +127,28 @@ const VpnDetection = () => {
     if (result.error) {
       return <XCircle className="h-5 w-5 text-red-500" />;
     }
-    
+
     // Check for VPN/Proxy detection results
     if (result.result === 1 || result.result === true) {
       return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
     }
-    
+
     if (result.result === 0 || result.result === false) {
       return <CheckCircle className="h-5 w-5 text-green-500" />;
     }
-    
+
     // Check for port scan results
-    if (result.status === 'Host is Up' && result.ports && result.ports.length > 0) {
-      return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-    }
-    
-    if (result.status === 'Host is down') {
+    if (result.status === 'Host is Up') {
+      if (result.ports && result.ports.length > 0) {
+        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      }
       return <CheckCircle className="h-5 w-5 text-green-500" />;
     }
-    
+
+    if (result.status === 'Host is down' || result.status === 'Timeout' || result.status === 'Error') {
+      return <XCircle className="h-5 w-5 text-red-500" />;
+    }
+
     // Check for quality score results
     if (result.fraud_score !== undefined) {
       if (result.fraud_score > 0.5) {
@@ -154,7 +157,7 @@ const VpnDetection = () => {
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       }
     }
-    
+
     return <Shield className="h-5 w-5 text-gray-500" />;
   };
 
@@ -162,25 +165,36 @@ const VpnDetection = () => {
     if (result.error) {
       return 'Error';
     }
-    
+
     // Check for VPN/Proxy detection results
     if (result.result === 1 || result.result === true) {
       return 'VPN/Proxy Detected';
     }
-    
+
     if (result.result === 0 || result.result === false) {
       return 'Clean';
     }
-    
+
     // Check for port scan results
-    if (result.status === 'Host is Up' && result.ports && result.ports.length > 0) {
-      return 'Open Ports Found';
+    if (result.status === 'Host is Up') {
+      if (result.ports && result.ports.length > 0) {
+        return `${result.openPortsCount || result.ports.length} Open Port(s)`;
+      }
+      return 'Host Up (No Open Ports)';
     }
-    
+
     if (result.status === 'Host is down') {
       return 'Host Down';
     }
-    
+
+    if (result.status === 'Timeout') {
+      return 'Scan Timeout';
+    }
+
+    if (result.status === 'Error') {
+      return 'Scan Error';
+    }
+
     // Check for quality score results
     if (result.fraud_score !== undefined) {
       if (result.fraud_score > 0.5) {
@@ -189,7 +203,7 @@ const VpnDetection = () => {
         return 'Low Risk';
       }
     }
-    
+
     return 'Unknown';
   };
 
@@ -198,7 +212,7 @@ const VpnDetection = () => {
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">VPN Detection</h2>
         <p className="text-gray-600">
-          Comprehensive VPN and proxy detection using multiple methods including port scanning, 
+          Comprehensive VPN and proxy detection using multiple methods including port scanning,
           ML analysis, and threat intelligence databases.
         </p>
       </div>
@@ -269,7 +283,7 @@ const VpnDetection = () => {
           const Icon = method.icon;
           const result = results[method.id];
           const isLoading = loading[method.id];
-          
+
           return (
             <div key={method.id} className="card">
               <div className="flex items-start justify-between mb-4">
@@ -299,13 +313,121 @@ const VpnDetection = () => {
 
               {result && !isLoading && (
                 <>
-                  <ResultCard
-                    title=""
-                    data={result}
-                    loading={false}
-                    error={result.error || null}
-                  />
-                  <DebugInfo result={result} methodName={method.name} />
+                  {method.id === 'vpnports' ? (
+                    <div className="space-y-3">
+                      <div className="bg-gray-50 rounded-md p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Status:</span>
+                          <span className={`text-sm font-semibold ${result.status === 'Host is Up' ? 'text-green-600' :
+                            result.status === 'Host is down' ? 'text-red-600' :
+                              'text-yellow-600'
+                            }`}>
+                            {result.status}
+                          </span>
+                        </div>
+                        {result.scannedHost && (
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-700">Scanned Host:</span>
+                            <span className="text-sm text-gray-900">{result.scannedHost}</span>
+                          </div>
+                        )}
+                        {result.hostname && result.hostname !== result.scannedHost && (
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-700">Hostname:</span>
+                            <span className="text-sm text-gray-900">{result.hostname}</span>
+                          </div>
+                        )}
+                        {result.openPortsCount !== undefined && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700">Open Ports:</span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {result.openPortsCount}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {result.ports && result.ports.length > 0 && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                          <h4 className="text-sm font-semibold text-yellow-800 mb-2">Open Ports Detected:</h4>
+                          <div className="space-y-2">
+                            {result.ports.map((port, idx) => {
+                              // Safely extract port number (handle object structures)
+                              const getPortNumber = (portObj) => {
+                                if (typeof portObj === 'number' || typeof portObj === 'string') {
+                                  return String(portObj);
+                                }
+                                if (portObj?.item?.portid) return String(portObj.item.portid);
+                                if (portObj?.item?.port) return String(portObj.item.port);
+                                if (portObj?.portid) return String(portObj.portid);
+                                if (portObj?.port) return String(portObj.port);
+                                return 'Unknown';
+                              };
+
+                              // Safely extract protocol
+                              const getProtocol = (portObj) => {
+                                if (typeof portObj === 'string') return portObj;
+                                return portObj?.protocol || portObj?.item?.protocol || 'tcp';
+                              };
+
+                              // Safely extract service/state
+                              const getService = (portObj) => {
+                                if (typeof portObj === 'string') return portObj;
+
+                                const serviceName = portObj?.service ||
+                                  portObj?.item?.service?.name ||
+                                  portObj?.state ||
+                                  portObj?.item?.state ||
+                                  'open';
+
+                                // Always return string
+                                return typeof serviceName === 'object'
+                                  ? JSON.stringify(serviceName)
+                                  : String(serviceName);
+                              };
+
+                              const portNum = getPortNumber(port.port || port);
+                              const protocol = getProtocol(port.protocol || port);
+                              const service = getService(port);
+
+                              return (
+                                <div key={idx} className="flex justify-between items-center text-sm">
+                                  <span className="font-medium text-yellow-900">
+                                    Port {portNum} ({protocol})
+                                  </span>
+                                  <span className="text-yellow-700">
+                                    {service}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {result.error && (
+                        <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                          <p className="text-sm text-red-700">{result.error}</p>
+                        </div>
+                      )}
+
+                      {result.msg && !result.error && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                          <p className="text-sm text-blue-700">{result.msg}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <ResultCard
+                        title=""
+                        data={result}
+                        loading={false}
+                        error={result.error || null}
+                      />
+                      <DebugInfo result={result} methodName={method.name} />
+                    </>
+                  )}
                 </>
               )}
             </div>

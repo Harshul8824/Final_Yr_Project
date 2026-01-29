@@ -1,7 +1,25 @@
 import React, { useState } from 'react';
 import { Search, AlertCircle } from 'lucide-react';
 import { whoisService } from '../services/api';
-import ResultCard from './ResultCard';
+
+const FieldRow = ({ label, value }) => {
+  const display = value === null || value === undefined || value === '' ? 'N/A' : String(value);
+  return (
+    <div className="flex justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
+      <span className="text-sm font-medium text-gray-600">{label}</span>
+      <span className="text-sm text-gray-900 text-right max-w-xs break-words">{display}</span>
+    </div>
+  );
+};
+
+const SectionCard = ({ title, children }) => {
+  return (
+    <div className="card">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+};
 
 const WhoisLookup = () => {
   const [host, setHost] = useState('');
@@ -114,12 +132,32 @@ const WhoisLookup = () => {
       {/* Results */}
       {result && (
         <div className="space-y-6">
-          <ResultCard
-            title="WHOIS Information"
-            data={result}
-            loading={loading}
-            error={error}
-          />
+          <SectionCard title="Domain">
+            <FieldRow label="Domain" value={result.domain} />
+            {result.registrar !== undefined && (
+              <FieldRow label="Registrar" value={result.registrar} />
+            )}
+          </SectionCard>
+
+          {result.registrant && (
+            <SectionCard title="Registrant">
+              <FieldRow label="Organization" value={result.registrant?.organization} />
+              <FieldRow label="Country" value={result.registrant?.country} />
+            </SectionCard>
+          )}
+
+          {result.registration && (
+            <SectionCard title="Registration">
+              <FieldRow label="Created Date" value={result.registration?.createdDate} />
+              <FieldRow label="Expires Date" value={result.registration?.expiresDate} />
+              <FieldRow label="Age" value={result.registration?.age} />
+            </SectionCard>
+          )}
+
+          <SectionCard title="Hosting">
+            <FieldRow label="IP Address" value={result.hosting?.ipAddress} />
+            <FieldRow label="IP Type" value={result.hosting?.ipType} />
+          </SectionCard>
         </div>
       )}
 

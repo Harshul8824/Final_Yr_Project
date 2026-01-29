@@ -85,9 +85,15 @@ const ResultCard = ({ title, data, loading, error }) => {
                 <span className="text-sm font-medium text-gray-600 capitalize">
                   {formatKey(key)}:
                 </span>
-                <span className="text-sm text-gray-900 text-right max-w-xs break-words">
-                  {formatValue(value)}
-                </span>
+                {typeof value === 'object' ? (
+                  <pre className="text-sm text-gray-900 text-right max-w-xs break-words whitespace-pre-wrap">
+                    {formatValue(value)}
+                  </pre>
+                ) : (
+                  <span className="text-sm text-gray-900 text-right max-w-xs break-words">
+                    {formatValue(value)}
+                  </span>
+                )}
               </div>
             ))
         ) : (
