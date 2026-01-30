@@ -128,82 +128,72 @@ const VpnDetection = () => {
       return <XCircle className="h-5 w-5 text-red-500" />;
     }
 
-    // Check for VPN/Proxy detection results
+    // Quality Score: result can be object { proxy, vpn, torExit, fraud_score } or null (disabled)
+    if (result.result && typeof result.result === 'object' && !Array.isArray(result.result)) {
+      const r = result.result;
+      if (r.torExit) return <AlertTriangle className="h-5 w-5 text-red-500" />;
+      if (r.proxy || r.vpn) return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      if (r.fraud_score != null && r.fraud_score > 75) return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      return <CheckCircle className="h-5 w-5 text-green-500" />;
+    }
+    if (result.result === null && result.note) {
+      return <Shield className="h-5 w-5 text-gray-500" />;
+    }
+
+    // VPN/Proxy detection: result 0 or 1
     if (result.result === 1 || result.result === true) {
       return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
     }
-
     if (result.result === 0 || result.result === false) {
       return <CheckCircle className="h-5 w-5 text-green-500" />;
     }
 
-    // Check for port scan results
+    // Port scan results
     if (result.status === 'Host is Up') {
       if (result.ports && result.ports.length > 0) {
         return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
       }
       return <CheckCircle className="h-5 w-5 text-green-500" />;
     }
-
     if (result.status === 'Host is down' || result.status === 'Timeout' || result.status === 'Error') {
       return <XCircle className="h-5 w-5 text-red-500" />;
     }
 
-    // Check for quality score results
     if (result.fraud_score !== undefined) {
-      if (result.fraud_score > 0.5) {
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-      } else {
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      }
+      if (result.fraud_score > 0.5) return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      return <CheckCircle className="h-5 w-5 text-green-500" />;
     }
 
     return <Shield className="h-5 w-5 text-gray-500" />;
   };
 
   const getStatusText = (result) => {
-    if (result.error) {
-      return 'Error';
-    }
+    if (result.error) return 'Error';
 
-    // Check for VPN/Proxy detection results
-    if (result.result === 1 || result.result === true) {
-      return 'VPN/Proxy Detected';
+    // Quality Score object or disabled
+    if (result.result && typeof result.result === 'object' && !Array.isArray(result.result)) {
+      const r = result.result;
+      if (r.torExit) return 'Tor Exit (High Risk)';
+      if (r.proxy || r.vpn) return 'VPN/Proxy Detected';
+      if (r.fraud_score != null && r.fraud_score > 75) return 'High Risk';
+      return 'Low Risk';
     }
+    if (result.result === null && result.note) return 'Disabled';
 
-    if (result.result === 0 || result.result === false) {
-      return 'Clean';
-    }
+    if (result.result === 1 || result.result === true) return 'VPN/Proxy Detected';
+    if (result.result === 0 || result.result === false) return 'Clean';
 
-    // Check for port scan results
     if (result.status === 'Host is Up') {
-      if (result.ports && result.ports.length > 0) {
-        return `${result.openPortsCount || result.ports.length} Open Port(s)`;
-      }
+      if (result.ports && result.ports.length > 0) return `${result.openPortsCount || result.ports.length} Open Port(s)`;
       return 'Host Up (No Open Ports)';
     }
+    if (result.status === 'Host is down') return 'Host Down';
+    if (result.status === 'Timeout') return 'Scan Timeout';
+    if (result.status === 'Error') return 'Scan Error';
 
-    if (result.status === 'Host is down') {
-      return 'Host Down';
-    }
-
-    if (result.status === 'Timeout') {
-      return 'Scan Timeout';
-    }
-
-    if (result.status === 'Error') {
-      return 'Scan Error';
-    }
-
-    // Check for quality score results
     if (result.fraud_score !== undefined) {
-      if (result.fraud_score > 0.5) {
-        return 'High Risk';
-      } else {
-        return 'Low Risk';
-      }
+      return result.fraud_score > 0.5 ? 'High Risk' : 'Low Risk';
     }
-
     return 'Unknown';
   };
 
@@ -315,105 +305,175 @@ const VpnDetection = () => {
                 <>
                   {method.id === 'vpnports' ? (
                     <div className="space-y-3">
-                      <div className="bg-gray-50 rounded-md p-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium text-gray-700">Status:</span>
-                          <span className={`text-sm font-semibold ${result.status === 'Host is Up' ? 'text-green-600' :
-                            result.status === 'Host is down' ? 'text-red-600' :
-                              'text-yellow-600'
-                            }`}>
-                            {result.status}
-                          </span>
-                        </div>
-                        {result.scannedHost && (
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-gray-700">Scanned Host:</span>
-                            <span className="text-sm text-gray-900">{result.scannedHost}</span>
-                          </div>
-                        )}
-                        {result.hostname && result.hostname !== result.scannedHost && (
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-gray-700">Hostname:</span>
-                            <span className="text-sm text-gray-900">{result.hostname}</span>
-                          </div>
-                        )}
-                        {result.openPortsCount !== undefined && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">Open Ports:</span>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {result.openPortsCount}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      {(() => {
+                        // Safe string for React: never render objects
+                        const safeStr = (v) => {
+                          if (v == null) return '';
+                          if (typeof v === 'string' || typeof v === 'number') return String(v);
+                          if (Array.isArray(v)) {
+                            const first = v[0];
+                            if (first && typeof first === 'object' && first.item?.name) return String(first.item.name);
+                            return v.map(x => safeStr(x)).join(', ');
+                          }
+                          if (typeof v === 'object') {
+                            if (v.item?.name) return String(v.item.name);
+                            if (v.item?.portid != null) return String(v.item.portid);
+                            if (v.portid != null) return String(v.portid);
+                            if (v.port != null && (typeof v.port === 'string' || typeof v.port === 'number')) return String(v.port);
+                            return JSON.stringify(v);
+                          }
+                          return String(v);
+                        };
 
-                      {result.ports && result.ports.length > 0 && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                          <h4 className="text-sm font-semibold text-yellow-800 mb-2">Open Ports Detected:</h4>
-                          <div className="space-y-2">
-                            {result.ports.map((port, idx) => {
-                              // Safely extract port number (handle object structures)
-                              const getPortNumber = (portObj) => {
-                                if (typeof portObj === 'number' || typeof portObj === 'string') {
-                                  return String(portObj);
-                                }
-                                if (portObj?.item?.portid) return String(portObj.item.portid);
-                                if (portObj?.item?.port) return String(portObj.item.port);
-                                if (portObj?.portid) return String(portObj.portid);
-                                if (portObj?.port) return String(portObj.port);
-                                return 'Unknown';
-                              };
+                        // Normalize ports from API: { port, protocol, state, service } (all strings)
+                        const portsList = (result.ports && Array.isArray(result.ports))
+                          ? result.ports.map((p) => {
+                              const portNum = typeof p.port === 'string' || typeof p.port === 'number' ? String(p.port) : safeStr(p?.port ?? p?.item ?? p);
+                              const protocol = typeof p.protocol === 'string' ? p.protocol : safeStr(p?.protocol ?? 'tcp');
+                              const state = typeof p.state === 'string' ? p.state : safeStr(p?.state ?? 'unknown');
+                              const service = p?.service != null ? safeStr(p.service) : (state === 'open' ? 'open' : state);
+                              return { port: portNum, protocol, state, service };
+                            }).filter(({ port }) => port && port !== 'Unknown' && !String(port).startsWith('{'))
+                          : [];
 
-                              // Safely extract protocol
-                              const getProtocol = (portObj) => {
-                                if (typeof portObj === 'string') return portObj;
-                                return portObj?.protocol || portObj?.item?.protocol || 'tcp';
-                              };
+                        const openCount = portsList.filter((p) => p.state === 'open').length;
+                        const filteredCount = portsList.filter((p) => p.state === 'filtered').length;
+                        const displayHostname = safeStr(result.hostname) || safeStr(result.scannedHost);
 
-                              // Safely extract service/state
-                              const getService = (portObj) => {
-                                if (typeof portObj === 'string') return portObj;
-
-                                const serviceName = portObj?.service ||
-                                  portObj?.item?.service?.name ||
-                                  portObj?.state ||
-                                  portObj?.item?.state ||
-                                  'open';
-
-                                // Always return string
-                                return typeof serviceName === 'object'
-                                  ? JSON.stringify(serviceName)
-                                  : String(serviceName);
-                              };
-
-                              const portNum = getPortNumber(port.port || port);
-                              const protocol = getProtocol(port.protocol || port);
-                              const service = getService(port);
-
-                              return (
-                                <div key={idx} className="flex justify-between items-center text-sm">
-                                  <span className="font-medium text-yellow-900">
-                                    Port {portNum} ({protocol})
-                                  </span>
-                                  <span className="text-yellow-700">
-                                    {service}
-                                  </span>
+                        return (
+                          <>
+                            {/* Status & summary */}
+                            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                              <div className="flex justify-between items-center mb-3">
+                                <span className="text-sm font-medium text-gray-700">Status</span>
+                                <span className={`text-sm font-semibold px-2 py-1 rounded ${safeStr(result.status) === 'Host is Up' ? 'text-green-700 bg-green-100' : safeStr(result.status) === 'Host is down' ? 'text-red-700 bg-red-100' : 'text-yellow-700 bg-yellow-100'}`}>
+                                  {safeStr(result.status)}
+                                </span>
+                              </div>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-600">Scanned host</span>
+                                  <span className="font-medium text-gray-900">{safeStr(result.scannedHost) || '—'}</span>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+                                {displayHostname && (
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-600">Hostname</span>
+                                    <span className="font-medium text-gray-900">{displayHostname}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                                  <span className="text-gray-600">Open ports</span>
+                                  <span className="font-semibold text-gray-900">{result.openPortsCount != null ? Number(result.openPortsCount) : openCount}</span>
+                                </div>
+                                {portsList.length > 0 && (
+                                  <div className="flex justify-between items-center text-gray-600">
+                                    <span>Total scanned</span>
+                                    <span>{portsList.length} (open: {openCount}, filtered: {filteredCount})</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* All ports with state */}
+                            {portsList.length > 0 && (
+                              <div className="rounded-lg border border-gray-200 overflow-hidden">
+                                <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
+                                  <h4 className="text-sm font-semibold text-gray-800">Scanned ports (VPN-related)</h4>
+                                </div>
+                                <div className="bg-white divide-y divide-gray-100">
+                                  {portsList.map(({ port, protocol, state, service }, idx) => (
+                                    <div key={idx} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                                      <div className="flex items-center gap-3">
+                                        <span className="font-mono font-medium text-gray-900">Port {port}</span>
+                                        <span className="text-gray-500">({protocol})</span>
+                                        {(service && service !== state && service !== 'open') && (
+                                          <span className="text-gray-500">· {service}</span>
+                                        )}
+                                      </div>
+                                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${state === 'open' ? 'bg-green-100 text-green-800' : state === 'filtered' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'}`}>
+                                        {state}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Note: Port meanings */}
+                            <div className="rounded-lg border border-blue-200 bg-blue-50 overflow-hidden">
+                              <div className="px-4 py-2 border-b border-blue-200 bg-blue-100">
+                                <h4 className="text-sm font-semibold text-blue-900">Note: Meaning of scanned ports</h4>
+                              </div>
+                              <div className="divide-y divide-blue-100">
+                                {[
+                                  { port: '443', meaning: 'HTTPS / OpenVPN over TLS — often used for VPN to bypass firewalls' },
+                                  { port: '500', meaning: 'IKE (Internet Key Exchange) — used by IPsec VPN' },
+                                  { port: '4500', meaning: 'IKE NAT-T — IPsec VPN through NAT' },
+                                  { port: '1194', meaning: 'OpenVPN — default port for OpenVPN' },
+                                  { port: '1723', meaning: 'PPTP — Point-to-Point Tunneling Protocol (older VPN)' },
+                                  { port: '1701', meaning: 'L2TP — Layer 2 Tunneling Protocol' },
+                                ].map(({ port, meaning }) => (
+                                  <div key={port} className="flex items-start gap-3 px-4 py-2.5 text-sm">
+                                    <span className="font-mono font-medium text-blue-900 shrink-0">Port {port}</span>
+                                    <span className="text-blue-800">{meaning}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
 
                       {result.error && (
                         <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                          <p className="text-sm text-red-700">{result.error}</p>
+                          <p className="text-sm text-red-700">
+                            {typeof result.error === 'string' ? result.error : JSON.stringify(result.error)}
+                          </p>
                         </div>
                       )}
 
                       {result.msg && !result.error && (
                         <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                          <p className="text-sm text-blue-700">{result.msg}</p>
+                          <p className="text-sm text-blue-700">
+                            {typeof result.msg === 'string' ? result.msg : JSON.stringify(result.msg)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : ['qualityscore', 'ipsearch', 'checkip', 'checkonlinedata'].includes(method.id) ? (
+                    <div className="space-y-3">
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Result</span>
+                          <span className={`text-sm font-semibold px-2 py-1 rounded ${
+                            result.error ? 'text-red-700 bg-red-100' :
+                            result.result === 1 || result.result === true ? 'text-yellow-700 bg-yellow-100' :
+                            (result.result && typeof result.result === 'object' && (result.result.proxy || result.result.vpn)) ? 'text-yellow-700 bg-yellow-100' :
+                            result.result === null && result.note ? 'text-gray-600 bg-gray-100' :
+                            'text-green-700 bg-green-100'
+                          }`}>
+                            {getStatusText(result)}
+                          </span>
+                        </div>
+                        {result.note && (
+                          <p className="text-sm text-gray-600 mt-2 pt-2 border-t border-gray-200">{result.note}</p>
+                        )}
+                        {result.result && typeof result.result === 'object' && !Array.isArray(result.result) && method.id === 'qualityscore' && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 space-y-2 text-sm">
+                            {result.result.torExit && (
+                              <div className="flex justify-between"><span className="text-gray-600">Tor exit node</span><span className="font-medium text-red-600">Yes (High Risk)</span></div>
+                            )}
+                            <div className="flex justify-between"><span className="text-gray-600">Proxy</span><span className="font-medium">{result.result.proxy ? 'Yes' : 'No'}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-600">VPN</span><span className="font-medium">{result.result.vpn ? 'Yes' : 'No'}</span></div>
+                            {result.result.fraud_score != null && (
+                              <div className="flex justify-between"><span className="text-gray-600">Fraud score</span><span className="font-medium">{result.result.fraud_score}</span></div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {result.error && (
+                        <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                          <p className="text-sm text-red-700">{typeof result.error === 'string' ? result.error : JSON.stringify(result.error)}</p>
                         </div>
                       )}
                     </div>

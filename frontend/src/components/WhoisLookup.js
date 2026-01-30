@@ -2,25 +2,6 @@ import React, { useState } from 'react';
 import { Search, AlertCircle } from 'lucide-react';
 import { whoisService } from '../services/api';
 
-const FieldRow = ({ label, value }) => {
-  const display = value === null || value === undefined || value === '' ? 'N/A' : String(value);
-  return (
-    <div className="flex justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
-      <span className="text-sm font-medium text-gray-600">{label}</span>
-      <span className="text-sm text-gray-900 text-right max-w-xs break-words">{display}</span>
-    </div>
-  );
-};
-
-const SectionCard = ({ title, children }) => {
-  return (
-    <div className="card">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
-};
-
 const WhoisLookup = () => {
   const [host, setHost] = useState('');
   const [result, setResult] = useState(null);
@@ -132,32 +113,95 @@ const WhoisLookup = () => {
       {/* Results */}
       {result && (
         <div className="space-y-6">
-          <SectionCard title="Domain">
-            <FieldRow label="Domain" value={result.domain} />
-            {result.registrar !== undefined && (
-              <FieldRow label="Registrar" value={result.registrar} />
-            )}
-          </SectionCard>
+          <div className="card">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">WHOIS Information</h3>
+            
+            <div className="space-y-4">
+              {/* Domain */}
+              <div className="flex justify-between items-center border-b pb-2">
+                <span className="text-sm font-medium text-gray-700">Domain:</span>
+                <span className="text-sm text-gray-900">{result.domain}</span>
+              </div>
 
-          {result.registrant && (
-            <SectionCard title="Registrant">
-              <FieldRow label="Organization" value={result.registrant?.organization} />
-              <FieldRow label="Country" value={result.registrant?.country} />
-            </SectionCard>
-          )}
+              {/* Registrant Organization */}
+              {result.registrant?.organization && (
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-sm font-medium text-gray-700">Organization:</span>
+                  <span className="text-sm text-gray-900">{result.registrant.organization}</span>
+                </div>
+              )}
 
-          {result.registration && (
-            <SectionCard title="Registration">
-              <FieldRow label="Created Date" value={result.registration?.createdDate} />
-              <FieldRow label="Expires Date" value={result.registration?.expiresDate} />
-              <FieldRow label="Age" value={result.registration?.age} />
-            </SectionCard>
-          )}
+              {/* Country */}
+              {result.registrant?.country && (
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-sm font-medium text-gray-700">Country:</span>
+                  <span className="text-sm text-gray-900">{result.registrant.country}</span>
+                </div>
+              )}
 
-          <SectionCard title="Hosting">
-            <FieldRow label="IP Address" value={result.hosting?.ipAddress} />
-            <FieldRow label="IP Type" value={result.hosting?.ipType} />
-          </SectionCard>
+              {/* Registration Date (only for domains) */}
+              {result.registration?.createdDate && (
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-sm font-medium text-gray-700">Created Date:</span>
+                  <span className="text-sm text-gray-900">{result.registration.createdDate}</span>
+                </div>
+              )}
+
+              {/* Expiry Date (only for domains) */}
+              {result.registration?.expiresDate && (
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-sm font-medium text-gray-700">Expires Date:</span>
+                  <span className="text-sm text-gray-900">{result.registration.expiresDate}</span>
+                </div>
+              )}
+
+              {/* Age (only for domains) */}
+              {result.registration?.age && (
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-sm font-medium text-gray-700">Domain Age:</span>
+                  <span className="text-sm text-gray-900">{result.registration.age}</span>
+                </div>
+              )}
+
+              {/* Registrar (only for domains) */}
+              {result.registrar && (
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-sm font-medium text-gray-700">Registrar:</span>
+                  <span className="text-sm text-gray-900">{result.registrar}</span>
+                </div>
+              )}
+
+              {/* IP Address */}
+              {result.hosting?.ipAddress && (
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-sm font-medium text-gray-700">IP Address:</span>
+                  <span className="text-sm text-gray-900">{result.hosting.ipAddress}</span>
+                </div>
+              )}
+
+              {/* IP Type */}
+              {result.hosting?.ipType && (
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-sm font-medium text-gray-700">IP Type:</span>
+                  <span className="text-sm text-gray-900">{result.hosting.ipType}</span>
+                </div>
+              )}
+
+              {/* Note (if present - for .in domains) */}
+              {result.note && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-4">
+                  <p className="text-sm text-yellow-800">{result.note}</p>
+                </div>
+              )}
+
+              {/* WHOIS Error (if present) */}
+              {result.whoisError && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-4">
+                  <p className="text-sm text-red-800">WHOIS Error: {result.whoisError}</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

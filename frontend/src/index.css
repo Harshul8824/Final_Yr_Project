@@ -445,3 +445,43 @@ code {
 .to-blue-50 {
   --tw-gradient-to: #eff6ff;
 }
+
+/* VPN port scan result layout */
+.divide-y > * + * {
+  border-top-width: 1px;
+  border-top-style: solid;
+}
+.divide-gray-100 > * + * {
+  border-color: #f3f4f6;
+}
+.divide-blue-100 > * + * {
+  border-color: #dbeafe;
+}
+.shrink-0 {
+  flex-shrink: 0;
+}
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+.overflow-hidden {
+  overflow: hidden;
+}
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+.bg-amber-100 {
+  background-color: #fef3c7;
+}
+.text-amber-800 {
+  color: #92400e;
+}
+.text-xs {
+  font-size: 0.75rem;
+}
+.py-0\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+}
+.gap-3 {
+  gap: 0.75rem;
+}

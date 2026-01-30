@@ -1,12 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
-require('dotenv').config();
 const path = require('path');
+
+// Load .env first; then config.env so config.env overrides
+require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, 'config.env') });
 
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = parseInt(process.env.PORT, 10) || 5000;
 
 // app.use(cors());
 app.use(cors({

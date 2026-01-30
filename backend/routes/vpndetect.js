@@ -345,7 +345,7 @@ router.route('/checkcidr').post(async (req, res) => {
 
 });
 
-/** Quality Score — local-only: aggregates VPN List + Online Data + Local IP Search (no external API key)
+/** Quality Score — IPQualityScore API when key set, else local checks (Tor + VPN list + online list + IP2Proxy)
  * @param {string} host
  */
 router.route('/qualityscore').post(async (req, res) => {
@@ -361,28 +361,56 @@ router.route('/qualityscore').post(async (req, res) => {
             return res.status(400).json({ msg: "Could not resolve hostname to IP.", err: "RESOLVE_FAILED" });
         }
 
+        const apiKey = (process.env.IP_QUALITY_SCORE_API_KEY || '').trim().replace(/[;\s]+$/, '');
+
+        // If API key is set, use IPQualityScore API
+        if (apiKey) {
+            try {
+                const url = `https://www.ipqualityscore.com/api/json/ip/${encodeURIComponent(apiKey)}/${encodeURIComponent(ip)}`;
+                const response = await axios.get(url, { timeout: 12000 });
+                const data = response.data;
+
+                if (data && data.success !== false) {
+                    return res.json({
+                        result: {
+                            proxy: !!data.proxy,
+                            vpn: !!data.vpn,
+                            tor: !!data.tor,
+                            torExit: !!data.tor,
+                            fraud_score: data.fraud_score != null ? data.fraud_score : 0,
+                            success: true,
+                            source: "ipqualityscore"
+                        },
+                        note: "Result from IPQualityScore API."
+                    });
+                }
+            } catch (apiErr) {
+                if (apiErr.response && apiErr.response.status === 401) {
+                    return res.status(500).json({ msg: "Invalid IPQualityScore API key. Check IP_QUALITY_SCORE_API_KEY in .env", err: "API_KEY_INVALID" });
+                }
+                if (apiErr.code === 'ECONNABORTED' || apiErr.code === 'ETIMEDOUT') {
+                    return res.status(504).json({ msg: "IPQualityScore API timeout. Try again later.", err: "TIMEOUT" });
+                }
+                return res.status(500).json({ msg: "IPQualityScore API failed.", err: apiErr.message || String(apiErr) });
+            }
+        }
+
+        // No API key — use local checks
         let vpnListHit = false;
         let onlineListHit = false;
         let localProxyHit = false;
         let torExitHit = false;
 
-        // VPN List check — exact line match (no substring false positives)
         if (fs.existsSync(vpnIps)) {
             vpnListHit = ipInFileLines(vpnIps, ip);
         }
-
-        // Online list check — exact line match
         if (fs.existsSync(listOfIps)) {
             onlineListHit = ipInFileLines(listOfIps, ip);
         }
-
-        // Tor exit node check (public list, no API key)
         try {
             const torIps = await getTorExitIps();
             torExitHit = torIps.has(ip);
         } catch (e) { /* ignore */ }
-
-        // Local IP2Proxy check (0=not proxy, 1=proxy, 2=datacenter — treat 1 or 2 as hit)
         if (fs.existsSync(ip2proxyDbPath)) {
             try {
                 ip2proxy.Open(ip2proxyDbPath);
@@ -403,7 +431,7 @@ router.route('/qualityscore').post(async (req, res) => {
                 success: true,
                 source: "local"
             },
-            note: "Based on local checks + Tor exit list (VPN list, online list, proxy DB, Tor). No external API key required."
+            note: "No API key set. Result from local checks (VPN list, online list, Tor, proxy DB). Set IP_QUALITY_SCORE_API_KEY in .env for API."
         });
     } catch (error) {
         res.status(500).json({ msg: "Quality Score check failed.", err: error.message || String(error) });
@@ -435,8 +463,12 @@ router.route('/ipsearch').post(async (req, res) => {
             try {
                 ip2proxy.Open(ip2proxyDbPath);
                 const val = ip2proxy.isProxy(ip);
-                const result = (val === 1 || val === 2 || val === true) ? 1 : 0;
-                return res.json({ result });
+                const found = (val === 1 || val === 2 || val === true);
+                const result = found ? 1 : 0;
+                return res.json({
+                    result,
+                    note: found ? "IP found in proxy/VPN database (IP2Proxy)." : "IP not in proxy database."
+                });
             } catch (openErr) {
                 return res.json({ result: 0, note: "Could not open IP2Proxy database. Check file path and format." });
             }
@@ -445,10 +477,11 @@ router.route('/ipsearch').post(async (req, res) => {
         // Fallback: check Tor exit list (so Local IP Search still works without DB)
         try {
             const torIps = await getTorExitIps();
-            const result = torIps.has(ip) ? 1 : 0;
+            const found = torIps.has(ip);
+            const result = found ? 1 : 0;
             return res.json({
                 result,
-                note: result === 1 ? "IP found in Tor exit list (proxy DB not configured)." : "Checked Tor list only (proxy DB not configured)."
+                note: found ? "IP found in Tor exit list (proxy DB not configured)." : "Checked Tor list only (proxy DB not configured)."
             });
         } catch (e) {
             return res.json({ result: 0, note: "Local proxy DB not configured. Set IP2PROXY_DATABASE_PATH or add PX11-Lite.BIN to backend/data/." });
@@ -530,17 +563,22 @@ router.post('/checkip', async (req, res) => {
 
         // If VPN list file exists, check with exact line match (no substring false positives)
         if (fs.existsSync(vpnIps)) {
-            const result = ipInFileLines(vpnIps, ip) ? 1 : 0;
-            return res.json({ result });
+            const found = ipInFileLines(vpnIps, ip);
+            const result = found ? 1 : 0;
+            return res.json({
+                result,
+                note: found ? "IP found in VPN list (IPv4_VPNs.txt)." : "IP not in VPN list."
+            });
         }
 
         // Fallback: check Tor exit list (so VPN List Check still works without file)
         try {
             const torIps = await getTorExitIps();
-            const result = torIps.has(ip) ? 1 : 0;
+            const found = torIps.has(ip);
+            const result = found ? 1 : 0;
             return res.json({
                 result,
-                note: result === 1 ? "IP found in Tor exit list (VPN list file not configured)." : "Checked Tor list only (VPN list file not configured)."
+                note: found ? "IP found in Tor exit list (VPN list file not configured)." : "Checked Tor list only (VPN list file not configured)."
             });
         } catch (e) {
             return res.json({ result: 0, note: "VPN list file not configured. Add IPv4_VPNs.txt to backend/MLServerCode/scripts/ to enable." });
@@ -558,33 +596,29 @@ router.post('/checkonlinedata', async (req, res) => {
         }
         host = host.trim();
 
-        // Resolve hostname to IP if needed
-        let ip = host;
-        if (!utils.isValidIPaddress(host)) {
-            try {
-                const dns = require('dns');
-                const { promisify } = require('util');
-                const lookup = promisify(dns.lookup);
-                const resolved = await lookup(host, { family: 4 });
-                ip = resolved.address;
-            } catch (dnsErr) {
-                return res.json({ result: 0, note: "Could not resolve hostname to IP." });
-            }
+        const ip = await resolveToIp(host);
+        if (!ip) {
+            return res.json({ result: 0, note: "Could not resolve hostname to IP." });
         }
 
         // If local list file exists, use exact line match (no substring false positives)
         if (fs.existsSync(listOfIps)) {
-            const result = ipInFileLines(listOfIps, ip) ? 1 : 0;
-            return res.json({ result });
+            const found = ipInFileLines(listOfIps, ip);
+            const result = found ? 1 : 0;
+            return res.json({
+                result,
+                note: found ? "IP found in online threat list (ips.txt)." : "IP not in online list."
+            });
         }
 
         // Else check against Tor exit node list (public, no API key)
         try {
             const torIps = await getTorExitIps();
-            const result = torIps.has(ip) ? 1 : 0;
+            const found = torIps.has(ip);
+            const result = found ? 1 : 0;
             return res.json({
                 result,
-                note: result === 1 ? "IP found in Tor exit node list (high risk)." : "Checked against Tor exit node list; not in list."
+                note: found ? "IP found in Tor exit node list (high risk)." : "Checked Tor exit list; IP not in list."
             });
         } catch (e) {
             return res.json({ result: 0, note: "Online list file not configured and Tor list unavailable. Add ips.txt to backend/MLServerCode/scripts/ or retry later." });
