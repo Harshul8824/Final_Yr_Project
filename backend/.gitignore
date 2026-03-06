@@ -81,3 +81,12 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+
+
+
+# backend/.gitignore mein ye line add karo
+*.BIN
+data/*.BIN
+
+data/IP2PROXY-LITE-PX8.BIN

@@ -17,6 +17,12 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Attach auth token if present
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     console.log(`Making ${config.method?.toUpperCase()} request to ${config.url}`);
     return config;
   },
@@ -101,6 +107,21 @@ export const vpnDetectionService = {
 
   getRealIp: async () => {
     const response = await api.post('/vpndetect/getrealip', {});
+    return response.data;
+  },
+};
+
+export const authService = {
+  register: async ({ name, email, password }) => {
+    const response = await api.post('/auth/register', { name, email, password });
+    return response.data;
+  },
+  login: async ({ email, password }) => {
+    const response = await api.post('/auth/login', { email, password });
+    return response.data;
+  },
+  me: async () => {
+    const response = await api.get('/auth/me');
     return response.data;
   },
 };

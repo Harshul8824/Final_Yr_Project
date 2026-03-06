@@ -24,6 +24,7 @@
     "json-to-csv": "^1.0.0",
     "jsonwebtoken": "^9.0.2",
     "libnmap": "^0.4.19",
+    "mongoose": "^9.2.4",
     "node-nmap": "^4.0.0",
     "whois-json": "^2.0.4"
   },

@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
 const path = require('path');
+const mongoose = require('mongoose');
 
 // Load .env first; then config.env so config.env overrides
 require('dotenv').config();
@@ -29,6 +30,7 @@ const vpndetect = require('./routes/vpndetect');
 const batchProcess = require('./routes/batchProcess');
 const analytics = require('./routes/analytics');
 const advancedSearch = require('./routes/advancedSearch');
+const auth = require('./routes/auth');
 
 
 app.use('/api/whois', whois);
@@ -36,8 +38,33 @@ app.use('/api/vpndetect', vpndetect);
 app.use('/api/batchprocess', batchProcess);
 app.use('/api/analytics', analytics);
 app.use('/api/advancedsearch', advancedSearch);
+app.use('/api/auth', auth);
 
-app.listen(port, () => {
+async function start() {
+  const mongoUri = process.env.MONGO_URI;
+  if (!mongoUri) {
+    console.error('MONGO_URI is missing in backend/config.env');
+    process.exit(1);
+  }
+  if (!process.env.JWT_SECRET) {
+    console.error('JWT_SECRET is missing in backend/config.env');
+    process.exit(1);
+  }
+
+  try {
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 10000,
+    });
+    console.log('Connected to MongoDB');
+  } catch (e) {
+    console.error('MongoDB connection failed:', e.message);
+    process.exit(1);
+  }
+
+  app.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
     console.log(`MERN Stack VPN Detection System - Backend Ready!`);
-});
+  });
+}
+
+start();

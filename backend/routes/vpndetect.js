@@ -8,11 +8,48 @@ var ip2proxy = require("ip2proxy-nodejs");
 const whoisjson = require('whois-json');
 const fs = require('fs');
 const utils = require('../utilities/utils');
+const { requireAuth } = require('../middleware/auth');
 
 // Optional file paths for VPN/IP lists (create these files or set env vars to enable)
 const vpnIps = process.env.VPN_IPS_PATH || path.join(__dirname, '..', 'MLServerCode', 'scripts', 'IPv4_VPNs.txt');
 const listOfIps = process.env.LIST_OF_IPS_PATH || path.join(__dirname, '..', 'MLServerCode', 'scripts', 'ips.txt');
 const ip2proxyDbPath = process.env.IP2PROXY_DATABASE_PATH || path.join(__dirname, '..', 'data', 'PX11-Lite.BIN');
+
+// New data-driven paths for cyb branch (IP2Proxy, VPN list, Threat list)
+// Resolve relative paths to absolute paths
+const resolveDataPath = (envPath, defaultFileName) => {
+    if (envPath) {
+        // If it's a relative path (starts with ./ or ../), resolve it relative to backend directory
+        if (envPath.startsWith('./') || envPath.startsWith('../')) {
+            return path.resolve(__dirname, '..', envPath);
+        }
+        // If it's already absolute, use it as-is or resolve relative to backend
+        return path.isAbsolute(envPath) ? envPath : path.resolve(__dirname, '..', envPath);
+    }
+    return path.join(__dirname, '..', 'data', defaultFileName);
+};
+
+// Prefer environment variables when they point to an existing file,
+// but gracefully fall back to known default locations if they don't.
+const computeIp2ProxyPath = () => {
+    const fromEnv = resolveDataPath(process.env.IP2PROXY_DB_PATH, 'IP2PROXY-LITE-PX8.BIN');
+    const px4Default = path.join(__dirname, '..', 'data', 'IP2PROXY-LITE-PX8.BIN');
+
+    if (fs.existsSync(fromEnv)) {
+        return fromEnv;
+    }
+    if (fs.existsSync(px4Default)) {
+        return px4Default;
+    }
+    // Fall back to env-resolved path (will later be reported in error JSON)
+    return fromEnv;
+};
+
+const IP2PROXY_DB_PATH = computeIp2ProxyPath();
+const VPN_IPS_FILE = resolveDataPath(process.env.VPN_IPS_FILE, 'vpn-ips.txt');
+const THREAT_IPS_FILE = resolveDataPath(process.env.THREAT_IPS_FILE, 'threat-ips.txt');
+
+let ip2proxyInitialized = false;
 
 // Tor exit node list (public, no API key) — cache for 10 minutes
 const TOR_EXIT_LIST_URL = 'https://check.torproject.org/torbulkexitlist';
@@ -27,6 +64,42 @@ function ipInFileLines(filePath, ip) {
         return lines.includes(ip);
     } catch (e) {
         return false;
+    }
+}
+
+// Helper function to ensure VPN IP list file exists (creates with sample data if missing)
+function ensureVPNListFile() {
+    if (!fs.existsSync(VPN_IPS_FILE)) {
+        const dir = path.dirname(VPN_IPS_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        const sampleIPs = `# Known VPN/Proxy IPs
+185.220.101.1
+185.220.101.2
+139.162.107.211
+178.128.109.51
+185.159.157.18
+`;
+        fs.writeFileSync(VPN_IPS_FILE, sampleIPs, 'utf-8');
+    }
+}
+
+// Helper function to ensure Threat IP list file exists (creates with sample data if missing)
+function ensureThreatListFile() {
+    if (!fs.existsSync(THREAT_IPS_FILE)) {
+        const dir = path.dirname(THREAT_IPS_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        const sampleThreats = `# Threat Intelligence Feed
+# Format: IP,ThreatType
+# Updated: ${new Date().toISOString()}
+185.220.101.1,TOR
+45.76.96.84,VPN
+195.201.114.63,PROXY
+`;
+        fs.writeFileSync(THREAT_IPS_FILE, sampleThreats, 'utf-8');
     }
 }
 
@@ -62,6 +135,9 @@ async function getTorExitIps() {
         return new Set();
     }
 }
+
+// Protect all VPN detection endpoints (requires Authorization: Bearer <token>)
+router.use(requireAuth);
 
 
 
@@ -442,8 +518,25 @@ router.route('/qualityscore').post(async (req, res) => {
 
 //local search
 
-/** Local IP Search — IP2Proxy DB if configured, else Tor exit list (no API key)
- * @param {string} host
+/** Check if IP exists in threat-ips.txt (format: IP,ThreatType) */
+function ipInThreatFile(filePath, ip) {
+    try {
+        const data = fs.readFileSync(filePath, 'utf-8');
+        const lines = data.split(/\r?\n/);
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            const parts = trimmed.split(',').map(s => s.trim());
+            if (parts[0] === ip) return true;
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
+/** Local IP Search — IP2Proxy DB + fallback to vpn-ips.txt & threat-ips.txt
+ * Return format: { result: 0 or 1, details: {...} }
  */
 router.route('/ipsearch').post(async (req, res) => {
     try {
@@ -453,41 +546,73 @@ router.route('/ipsearch').post(async (req, res) => {
         }
         host = host.trim();
 
-        const ip = await resolveToIp(host);
-        if (!ip) {
-            return res.json({ result: 0, note: "Could not resolve hostname to IP." });
+        // Resolve to concrete IP (handles domain / URL input)
+        let ip = host;
+        if (!utils.isValidIPaddress(ip)) {
+            const extracted = utils.extractHostname(ip) || ip;
+            ip = await resolveToIp(extracted);
+        }
+        if (!ip || !utils.isValidIPaddress(ip)) {
+            return res.status(400).json({ msg: "Could not resolve hostname to IP.", err: "RESOLVE_FAILED" });
         }
 
-        // If IP2Proxy DB exists, use it (0=not proxy, 1=proxy, 2=datacenter)
-        if (fs.existsSync(ip2proxyDbPath)) {
-            try {
-                ip2proxy.Open(ip2proxyDbPath);
-                const val = ip2proxy.isProxy(ip);
-                const found = (val === 1 || val === 2 || val === true);
-                const result = found ? 1 : 0;
-                return res.json({
-                    result,
-                    note: found ? "IP found in proxy/VPN database (IP2Proxy)." : "IP not in proxy database."
-                });
-            } catch (openErr) {
-                return res.json({ result: 0, note: "Could not open IP2Proxy database. Check file path and format." });
+        let result = 0;
+        let proxyType = '-';
+        let country = '-';
+        let isp = '-';
+        let source = '';
+
+        // 1) Check IP2Proxy DB if available
+        if (IP2PROXY_DB_PATH && fs.existsSync(IP2PROXY_DB_PATH)) {
+            if (!ip2proxyInitialized) {
+                try {
+                    ip2proxy.Open(IP2PROXY_DB_PATH);
+                    ip2proxyInitialized = true;
+                } catch (openErr) {
+                    console.error("IP2Proxy Open Error:", openErr);
+                }
+            }
+            if (ip2proxyInitialized) {
+                const isProxy = ip2proxy.isProxy(ip);
+                result = (isProxy === 1 || isProxy === 2 || isProxy === true) ? 1 : 0;
+                proxyType = ip2proxy.getProxyType(ip) || proxyType;
+                country = ip2proxy.getCountryShort(ip) || country;
+                isp = ip2proxy.getISP(ip) || isp;
+                source = result ? 'IP2Proxy' : '';
             }
         }
 
-        // Fallback: check Tor exit list (so Local IP Search still works without DB)
-        try {
-            const torIps = await getTorExitIps();
-            const found = torIps.has(ip);
-            const result = found ? 1 : 0;
-            return res.json({
-                result,
-                note: found ? "IP found in Tor exit list (proxy DB not configured)." : "Checked Tor list only (proxy DB not configured)."
-            });
-        } catch (e) {
-            return res.json({ result: 0, note: "Local proxy DB not configured. Set IP2PROXY_DATABASE_PATH or add PX11-Lite.BIN to backend/data/." });
+        // 2) Fallback: if IP2Proxy said clean, check custom lists (vpn-ips.txt, threat-ips.txt)
+        if (result === 0) {
+            ensureVPNListFile();
+            ensureThreatListFile();
+            const inVpnList = ipInFileLines(VPN_IPS_FILE, ip);
+            const inThreatList = ipInThreatFile(THREAT_IPS_FILE, ip);
+            if (inVpnList || inThreatList) {
+                result = 1;
+                source = inVpnList && inThreatList ? 'vpn-ips.txt, threat-ips.txt' : (inVpnList ? 'vpn-ips.txt' : 'threat-ips.txt');
+                if (proxyType === '-') proxyType = 'VPN/Proxy (custom list)';
+            }
         }
+
+        res.json({
+            result,
+            details: {
+                ip,
+                proxyType: proxyType,
+                country: country,
+                isp: isp,
+                source: source || (result ? 'IP2Proxy' : 'none'),
+                moduleVersion: ip2proxyInitialized ? ip2proxy.getModuleVersion() : '-',
+                databaseVersion: ip2proxyInitialized ? ip2proxy.getDatabaseVersion() : '-'
+            }
+        });
     } catch (error) {
-        res.status(500).json({ msg: "Local IP search failed.", err: error.message });
+        console.error('IP2Proxy Error:', error);
+        res.status(500).json({
+            msg: "Local IP search failed. Database may not be configured.",
+            error: error.message
+        });
     }
 });
 
@@ -548,7 +673,10 @@ router.route('/checkorg').post(async (req, res) => {
     }
 
 });
-router.post('/checkip', async (req, res) => {
+/** VPN List Check — custom list file (vpn-ips.txt). Creates file with sample data if missing.
+ * Return format: { result: 0 or 1, matchedIP: "..." }
+ */
+router.post('/checkip', (req, res) => {
     try {
         let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
         if (!host) {
@@ -556,39 +684,47 @@ router.post('/checkip', async (req, res) => {
         }
         host = host.trim();
 
-        const ip = await resolveToIp(host);
-        if (!ip) {
-            return res.status(400).json({ msg: "Could not resolve hostname to IP." });
+        // Resolve to IP so list comparisons are always IP-based
+        let ip = host;
+        if (!utils.isValidIPaddress(ip)) {
+            const extracted = utils.extractHostname(ip) || ip;
+            // Note: resolveToIp is async; wrapping whole handler into async is heavy,
+            // so best-effort: require direct IP when resolution fails.
+            // To keep this sync route simple, only allow direct IPs.
+            if (!utils.isValidIPaddress(extracted)) {
+                return res.status(400).json({ msg: "Please provide a valid IPv4 address for VPN list check." });
+            }
+            ip = extracted;
         }
 
-        // If VPN list file exists, check with exact line match (no substring false positives)
-        if (fs.existsSync(vpnIps)) {
-            const found = ipInFileLines(vpnIps, ip);
-            const result = found ? 1 : 0;
-            return res.json({
-                result,
-                note: found ? "IP found in VPN list (IPv4_VPNs.txt)." : "IP not in VPN list."
-            });
-        }
+        // Ensure VPN list file exists (creates with sample data on first run)
+        ensureVPNListFile();
 
-        // Fallback: check Tor exit list (so VPN List Check still works without file)
-        try {
-            const torIps = await getTorExitIps();
-            const found = torIps.has(ip);
-            const result = found ? 1 : 0;
-            return res.json({
-                result,
-                note: found ? "IP found in Tor exit list (VPN list file not configured)." : "Checked Tor list only (VPN list file not configured)."
-            });
-        } catch (e) {
-            return res.json({ result: 0, note: "VPN list file not configured. Add IPv4_VPNs.txt to backend/MLServerCode/scripts/ to enable." });
-        }
+        const data = fs.readFileSync(VPN_IPS_FILE, 'utf-8');
+        const lines = data.split(/\r?\n/).map(line => line.trim());
+
+        const found = lines.some(line =>
+            line && !line.startsWith('#') && line === ip
+        );
+
+        res.json({
+            result: found ? 1 : 0,
+            matchedIP: found ? ip : null,
+            totalIPsInList: lines.filter(l => l && !l.startsWith('#')).length
+        });
     } catch (error) {
-        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
+        console.error('VPN List Check Error:', error);
+        res.status(500).json({
+            msg: "VPN list check failed. File may be corrupted.",
+            error: error.message
+        });
     }
 });
 
-router.post('/checkonlinedata', async (req, res) => {
+/** Online Data Check — threat intelligence list (threat-ips.txt). Creates file with sample data if missing.
+ * Return format: { result: 0 or 1, threatType: "..." }
+ */
+router.post('/checkonlinedata', (req, res) => {
     try {
         let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
         if (!host) {
@@ -596,35 +732,58 @@ router.post('/checkonlinedata', async (req, res) => {
         }
         host = host.trim();
 
-        const ip = await resolveToIp(host);
-        if (!ip) {
-            return res.json({ result: 0, note: "Could not resolve hostname to IP." });
+        // For online data file, we also compare by IP.
+        let ipForCheck = host;
+        if (!utils.isValidIPaddress(ipForCheck)) {
+            const extracted = utils.extractHostname(ipForCheck) || ipForCheck;
+            // Same as VPN list: keep it deterministic and IP-based only.
+            if (!utils.isValidIPaddress(extracted)) {
+                return res.status(400).json({ msg: "Please provide a valid IPv4 address for Online Data Check." });
+            }
+            ipForCheck = extracted;
         }
 
-        // If local list file exists, use exact line match (no substring false positives)
-        if (fs.existsSync(listOfIps)) {
-            const found = ipInFileLines(listOfIps, ip);
-            const result = found ? 1 : 0;
-            return res.json({
-                result,
-                note: found ? "IP found in online threat list (ips.txt)." : "IP not in online list."
-            });
+        // Ensure threat list file exists (creates with sample data on first run)
+        ensureThreatListFile();
+
+        const data = fs.readFileSync(THREAT_IPS_FILE, 'utf-8');
+        const lines = data.split(/\r?\n/);
+
+        let threatType = null;
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+
+            const parts = trimmed.split(',').map(s => s.trim());
+            const ip = parts[0];
+            const type = parts[1] || null;
+
+            if (ip === ipForCheck) {
+                threatType = type;
+                break;
+            }
         }
 
-        // Else check against Tor exit node list (public, no API key)
+        let lastUpdated = null;
         try {
-            const torIps = await getTorExitIps();
-            const found = torIps.has(ip);
-            const result = found ? 1 : 0;
-            return res.json({
-                result,
-                note: found ? "IP found in Tor exit node list (high risk)." : "Checked Tor exit list; IP not in list."
-            });
+            lastUpdated = fs.statSync(THREAT_IPS_FILE).mtime;
         } catch (e) {
-            return res.json({ result: 0, note: "Online list file not configured and Tor list unavailable. Add ips.txt to backend/MLServerCode/scripts/ or retry later." });
+            lastUpdated = null;
         }
+
+        res.json({
+            result: threatType ? 1 : 0,
+            threatType: threatType,
+            checkedIP: ipForCheck,
+            lastUpdated: lastUpdated
+        });
     } catch (error) {
-        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
+        console.error('Online Data Check Error:', error);
+        res.status(500).json({
+            msg: "Threat database check failed.",
+            error: error.message
+        });
     }
 });
 

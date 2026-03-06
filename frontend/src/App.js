@@ -5,9 +5,22 @@ import Dashboard from './components/Dashboard';
 import WhoisLookup from './components/WhoisLookup';
 import VpnDetection from './components/VpnDetection';
 import NetworkStatus from './components/NetworkStatus';
+import Login from './components/Login';
+import Register from './components/Register';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-function App() {
+function AppInner() {
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const { isAuthenticated, initializing } = useAuth();
+
+  const safeSetPage = (next) => {
+    // Protect VPN detection page behind login
+    if (next === 'vpn-detection' && !isAuthenticated) {
+      setCurrentPage('login');
+      return;
+    }
+    setCurrentPage(next);
+  };
 
   const renderPage = () => {
     switch (currentPage) {
@@ -17,6 +30,10 @@ function App() {
         return <WhoisLookup />;
       case 'vpn-detection':
         return <VpnDetection />;
+      case 'login':
+        return <Login onSuccess={() => safeSetPage('vpn-detection')} onGoRegister={() => safeSetPage('register')} />;
+      case 'register':
+        return <Register onSuccess={() => safeSetPage('vpn-detection')} onGoLogin={() => safeSetPage('login')} />;
       case 'batch-process':
         return (
           <div className="max-w-4xl mx-auto p-6">
@@ -58,9 +75,22 @@ function App() {
     }
   };
 
+  if (initializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="card">
+          <div className="flex items-center">
+            <div className="loading-spinner"></div>
+            <span className="ml-3 text-gray-700">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header currentPage={currentPage} onPageChange={setCurrentPage} />
+      <Header currentPage={currentPage} onPageChange={safeSetPage} />
       <main className="py-6">
         {renderPage()}
       </main>
@@ -94,6 +124,14 @@ function App() {
         }}
       />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
   );
 }
 

@@ -471,6 +471,67 @@ const VpnDetection = () => {
                           </div>
                         )}
                       </div>
+
+                      {/* Detailed rendering for Local IP Search (IP2Proxy) */}
+                      {method.id === 'ipsearch' && result && !isLoading && !result.error && (
+                        <div className="bg-gray-50 rounded-md p-3 space-y-2">
+                          {result.details && (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-700">Proxy Type:</span>
+                                <span className="font-medium">{result.details.proxyType || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-700">Country:</span>
+                                <span className="font-medium">{result.details.country || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-700">ISP:</span>
+                                <span className="font-medium">{result.details.isp || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between text-sm text-gray-500">
+                                <span>DB Version:</span>
+                                <span>{result.details.databaseVersion || 'N/A'}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Detailed rendering for VPN List Check */}
+                      {method.id === 'checkip' && result && !isLoading && !result.error && (
+                        <div className="bg-gray-50 rounded-md p-3 space-y-2">
+                          {result.matchedIP && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-700">Matched IP:</span>
+                              <span className="font-medium text-red-600">{result.matchedIP}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-700">Database Size:</span>
+                            <span className="font-medium">{result.totalIPsInList || 'N/A'} IPs</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Detailed rendering for Online Data Check */}
+                      {method.id === 'checkonlinedata' && result && !isLoading && !result.error && (
+                        <div className="bg-gray-50 rounded-md p-3 space-y-2">
+                          {result.threatType && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-700">Threat Type:</span>
+                              <span className="font-medium text-red-600">{result.threatType}</span>
+                            </div>
+                          )}
+                          {result.lastUpdated && (
+                            <div className="flex justify-between text-sm text-gray-500">
+                              <span>Last Updated:</span>
+                              <span>{new Date(result.lastUpdated).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {result.error && (
                         <div className="bg-red-50 border border-red-200 rounded-md p-3">
                           <p className="text-sm text-red-700">{typeof result.error === 'string' ? result.error : JSON.stringify(result.error)}</p>
@@ -499,12 +560,11 @@ const VpnDetection = () => {
       <div className="mt-8 bg-blue-50 border border-blue-200 rounded-md p-4">
         <h3 className="text-sm font-medium text-blue-800 mb-2">Detection Methods:</h3>
         <ul className="text-sm text-blue-700 space-y-1">
-          <li>• <strong>VPN Port Scan:</strong> Checks for common VPN service ports</li>
-          <li>• <strong>Quality Score:</strong> External API-based fraud detection</li>
-          <li>• <strong>Intel Score:</strong> Machine learning-based analysis</li>
-          <li>• <strong>Local Search:</strong> Checks against local proxy database</li>
-          <li>• <strong>VPN List:</strong> Compares against known VPN IP ranges</li>
-          <li>• <strong>Online Data:</strong> Real-time threat intelligence lookup</li>
+          <li>• <strong>VPN Port Scan:</strong> Scans host for common VPN ports (1723, 1701, 500, 4500, 1194, 443)</li>
+          <li>• <strong>Quality Score:</strong> Uses IPQualityScore API or local lists (VPN list, online list, Tor, IP2Proxy)</li>
+          <li>• <strong>Local IP Search:</strong> Looks up IP in local IP2Proxy proxy/VPN database</li>
+          <li>• <strong>VPN List Check:</strong> Compares IP against custom VPN IP list file</li>
+          <li>• <strong>Online Data Check:</strong> Checks IP against local threat intelligence list</li>
         </ul>
       </div>
     </div>

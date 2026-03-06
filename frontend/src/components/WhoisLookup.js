@@ -112,95 +112,79 @@ const WhoisLookup = () => {
 
       {/* Results */}
       {result && (
-        <div className="space-y-6">
-          <div className="card">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">WHOIS Information</h3>
-            
-            <div className="space-y-4">
-              {/* Domain */}
-              <div className="flex justify-between items-center border-b pb-2">
-                <span className="text-sm font-medium text-gray-700">Domain:</span>
-                <span className="text-sm text-gray-900">{result.domain}</span>
+        <div className="card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">WHOIS Information</h3>
+          <div className="space-y-5">
+            {/* Domain */}
+            {result.domain != null && result.domain !== '' && (
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-sm font-medium text-gray-600 shrink-0">Domain:</span>
+                <span className="text-sm text-gray-900 break-all">{result.domain}</span>
               </div>
+            )}
 
-              {/* Registrant Organization */}
-              {result.registrant?.organization && (
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm font-medium text-gray-700">Organization:</span>
-                  <span className="text-sm text-gray-900">{result.registrant.organization}</span>
+            {/* Registrant (nested object as readable rows) */}
+            {result.registrant && typeof result.registrant === 'object' && Object.keys(result.registrant).length > 0 && (
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50">
+                <h4 className="text-sm font-semibold text-gray-800 mb-3">Registrant</h4>
+                <div className="space-y-2">
+                  {Object.entries(result.registrant).map(([k, v]) =>
+                    v != null && v !== '' ? (
+                      <div key={k} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="text-sm text-gray-600 shrink-0 capitalize">{k.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                        <span className="text-sm text-gray-900 break-all">{String(v)}</span>
+                      </div>
+                    ) : null
+                  )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Country */}
-              {result.registrant?.country && (
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm font-medium text-gray-700">Country:</span>
-                  <span className="text-sm text-gray-900">{result.registrant.country}</span>
+            {/* Hosting (nested object as readable rows) */}
+            {result.hosting && typeof result.hosting === 'object' && Object.keys(result.hosting).length > 0 && (
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50">
+                <h4 className="text-sm font-semibold text-gray-800 mb-3">Hosting</h4>
+                <div className="space-y-2">
+                  {Object.entries(result.hosting).map(([k, v]) =>
+                    v != null && v !== '' ? (
+                      <div key={k} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="text-sm text-gray-600 shrink-0 capitalize">{k.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                        <span className="text-sm text-gray-900 break-all">{String(v)}</span>
+                      </div>
+                    ) : null
+                  )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Registration Date (only for domains) */}
-              {result.registration?.createdDate && (
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm font-medium text-gray-700">Created Date:</span>
-                  <span className="text-sm text-gray-900">{result.registration.createdDate}</span>
+            {/* Registration (nested object as readable rows) */}
+            {result.registration && typeof result.registration === 'object' && Object.keys(result.registration).length > 0 && (
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50">
+                <h4 className="text-sm font-semibold text-gray-800 mb-3">Registration</h4>
+                <div className="space-y-2">
+                  {Object.entries(result.registration).map(([k, v]) =>
+                    v != null && v !== '' ? (
+                      <div key={k} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="text-sm text-gray-600 shrink-0 capitalize">{k.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                        <span className="text-sm text-gray-900 break-all">{String(v)}</span>
+                      </div>
+                    ) : null
+                  )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Expiry Date (only for domains) */}
-              {result.registration?.expiresDate && (
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm font-medium text-gray-700">Expires Date:</span>
-                  <span className="text-sm text-gray-900">{result.registration.expiresDate}</span>
+            {/* Other top-level fields (e.g. registrar, note) */}
+            {['registrar', 'note', 'whoisError'].map((key) => {
+              const value = result[key];
+              if (value == null || value === '') return null;
+              return (
+                <div key={key} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="text-sm font-medium text-gray-600 shrink-0 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                  <span className="text-sm text-gray-900 break-all">{String(value)}</span>
                 </div>
-              )}
-
-              {/* Age (only for domains) */}
-              {result.registration?.age && (
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm font-medium text-gray-700">Domain Age:</span>
-                  <span className="text-sm text-gray-900">{result.registration.age}</span>
-                </div>
-              )}
-
-              {/* Registrar (only for domains) */}
-              {result.registrar && (
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm font-medium text-gray-700">Registrar:</span>
-                  <span className="text-sm text-gray-900">{result.registrar}</span>
-                </div>
-              )}
-
-              {/* IP Address */}
-              {result.hosting?.ipAddress && (
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm font-medium text-gray-700">IP Address:</span>
-                  <span className="text-sm text-gray-900">{result.hosting.ipAddress}</span>
-                </div>
-              )}
-
-              {/* IP Type */}
-              {result.hosting?.ipType && (
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-sm font-medium text-gray-700">IP Type:</span>
-                  <span className="text-sm text-gray-900">{result.hosting.ipType}</span>
-                </div>
-              )}
-
-              {/* Note (if present - for .in domains) */}
-              {result.note && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-4">
-                  <p className="text-sm text-yellow-800">{result.note}</p>
-                </div>
-              )}
-
-              {/* WHOIS Error (if present) */}
-              {result.whoisError && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-4">
-                  <p className="text-sm text-red-800">WHOIS Error: {result.whoisError}</p>
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -1,0 +1,8 @@
+# Threat Intelligence Feed
+# Format: IP,ThreatType
+# Updated: 2025-01-15
+185.220.101.1,TOR
+45.76.96.84,VPN
+195.201.114.63,PROXY
+104.131.191.52,SPAM
+

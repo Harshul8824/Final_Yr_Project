@@ -1,7 +1,10 @@
 import React from 'react';
-import { Shield, Search, BarChart3, FileText, Network, Settings } from 'lucide-react';
+import { Shield, Search, BarChart3, FileText, Network, LogIn, LogOut, UserPlus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Header = ({ currentPage, onPageChange }) => {
+  const { isAuthenticated, user, logout } = useAuth();
+
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'whois', label: 'WHOIS Lookup', icon: Search },
@@ -26,7 +29,7 @@ const Header = ({ currentPage, onPageChange }) => {
           </div>
 
           {/* Navigation */}
-          <nav className="hidden md:flex space-x-8">
+          <nav className="hidden md:flex items-center space-x-2">
             {navigationItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -44,6 +47,51 @@ const Header = ({ currentPage, onPageChange }) => {
                 </button>
               );
             })}
+
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+
+            {!isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => onPageChange('login')}
+                  className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    currentPage === 'login'
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login
+                </button>
+                <button
+                  onClick={() => onPageChange('register')}
+                  className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    currentPage === 'register'
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Register
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-gray-600 px-2">
+                  {user?.name || user?.email || 'User'}
+                </span>
+                <button
+                  onClick={() => {
+                    logout();
+                    onPageChange('dashboard');
+                  }}
+                  className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </button>
+              </>
+            )}
           </nav>
 
           {/* Mobile menu button */}
@@ -80,6 +128,46 @@ const Header = ({ currentPage, onPageChange }) => {
               </button>
             );
           })}
+
+          <div className="border-t border-gray-200 pt-2 mt-2">
+            {!isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => onPageChange('login')}
+                  className={`w-full text-left flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    currentPage === 'login'
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login
+                </button>
+                <button
+                  onClick={() => onPageChange('register')}
+                  className={`w-full text-left flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    currentPage === 'register'
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Register
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  logout();
+                  onPageChange('dashboard');
+                }}
+                className="w-full text-left flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </header>
