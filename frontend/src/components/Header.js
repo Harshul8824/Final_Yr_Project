@@ -6,12 +6,10 @@ const Header = ({ currentPage, onPageChange }) => {
   const { isAuthenticated, user, logout } = useAuth();
 
   const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'history', label: 'History', icon: HistoryIcon },
     { id: 'whois', label: 'WHOIS Lookup', icon: Search },
     { id: 'vpn-detection', label: 'VPN Detection', icon: Shield },
     { id: 'batch-process', label: 'Batch Process', icon: FileText },
-    { id: 'network-scan', label: 'Network Scan', icon: Network },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   ];
 
@@ -20,7 +18,11 @@ const Header = ({ currentPage, onPageChange }) => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center" style={{ height: '4rem' }}>
           {/* Logo */}
-          <div className="flex items-center">
+          <div 
+            className="flex items-center cursor-pointer hover:opacity-80 transition-opacity" 
+            onClick={() => onPageChange('dashboard')}
+            title="Go to Dashboard"
+          >
             <div className="flex-shrink-0 flex items-center">
               <Shield className="h-8 w-8 text-primary-600" />
               <h1 className="ml-2 text-xl font-bold text-gray-900 hidden xl:block">
@@ -78,9 +80,6 @@ const Header = ({ currentPage, onPageChange }) => {
               </>
             ) : (
               <>
-                <span className="text-sm text-gray-600 px-2">
-                  {user?.name || user?.email || 'User'}
-                </span>
                 <button
                   onClick={() => {
                     logout();

@@ -66,12 +66,6 @@ const Dashboard = () => {
       icon: FileText,
       color: 'text-green-600',
     },
-    {
-      name: 'Network Scanning',
-      description: 'Advanced network port scanning',
-      icon: Network,
-      color: 'text-purple-600',
-    },
   ];
 
   if (loading) {
@@ -115,7 +109,7 @@ const Dashboard = () => {
       )}
 
       {/* Features Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 mb-8">
         {features.map((feature) => {
           const Icon = feature.icon;
           return (
@@ -134,7 +128,7 @@ const Dashboard = () => {
       {/* Quick Actions */}
       <div className="mt-8 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
           <button className="btn-primary">
             <Search className="h-4 w-4 mr-2" />
             WHOIS Lookup
@@ -146,10 +140,6 @@ const Dashboard = () => {
           <button className="btn-primary">
             <FileText className="h-4 w-4 mr-2" />
             Batch Process
-          </button>
-          <button className="btn-primary">
-            <Network className="h-4 w-4 mr-2" />
-            Network Scan
           </button>
         </div>
       </div>

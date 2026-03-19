@@ -103,6 +103,30 @@ function ensureThreatListFile() {
     }
 }
 
+// Helper to auto-feed newly caught proxies and vpns securely into local fallback database
+function autoAppendToVpnList(ip) {
+    try {
+        if (!ip || typeof ip !== 'string') return;
+        ensureVPNListFile();
+        if (!ipInFileLines(VPN_IPS_FILE, ip)) {
+            // Append with newline
+            fs.appendFileSync(VPN_IPS_FILE, `\n${ip}`, 'utf-8');
+        }
+    } catch (e) { console.error("Failed to auto-append to VPN list:", e.message); }
+}
+
+// Helper to auto-feed high risk Tor & Fraud threats into threat database
+function autoAppendToThreatList(ip, threatType) {
+    try {
+        if (!ip || typeof ip !== 'string') return;
+        ensureThreatListFile();
+        if (!ipInThreatFile(THREAT_IPS_FILE, ip)) {
+            // Append explicitly structured CSV record
+            fs.appendFileSync(THREAT_IPS_FILE, `\n${ip},${threatType}`, 'utf-8');
+        }
+    } catch (e) { console.error("Failed to auto-append to Threat list:", e.message); }
+}
+
 /** Resolve host to IP (returns host if already valid IP) */
 async function resolveToIp(host) {
     const h = (host && typeof host === 'string') ? host.trim() : '';
@@ -333,6 +357,22 @@ router.route('/vpnports').post(async (req, res) => {
             return p.state === 'open';
         });
 
+        // 🟢 AUTO-APPEND LEARNING LOGIC:
+        // We must ONLY auto-flag IPs that explicitly keep known VPN gateway ports open (OpenVPN, PPTP, IPsec).
+        // 443 (HTTPS) is excluded because almost every legitimate webserver & DNS (like 8.8.8.8) keeps 443 open!
+        const strictVpnPorts = ['1194', '1723', '1701', '500', '4500'];
+        const isStrictVpnActive = trulyOpenPorts.some(p => strictVpnPorts.includes(p.port.toString()));
+
+        if (hostUp && isStrictVpnActive) {
+            const detectedIp = await resolveToIp(host);
+            // Extra layer of whitelist protection for global public DNS providers 
+            const isWhitelist = ['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1'].includes(detectedIp);
+            
+            if (detectedIp && !isWhitelist) {
+                autoAppendToVpnList(detectedIp);
+            }
+        }
+
         // Build response
         const response = {
             status: hostUp ? "Host is Up" : "Host is down",
@@ -447,6 +487,18 @@ router.route('/qualityscore').post(async (req, res) => {
                 const data = response.data;
 
                 if (data && data.success !== false) {
+                    // 🟢 AUTO-APPEND LEARNING LOGIC:
+                    // While the premium API is active and finds true threats, append them to our local text files 
+                    // so we can seamlessly maintain protection even if our free API exhausts!
+                    if (data.vpn || data.proxy) {
+                        autoAppendToVpnList(ip);
+                    }
+                    if (data.tor) {
+                        autoAppendToThreatList(ip, "TOR");
+                    } else if (data.fraud_score >= 85) {
+                        autoAppendToThreatList(ip, "HIGH_FRAUD");
+                    }
+
                     return res.json({
                         result: {
                             proxy: !!data.proxy,
