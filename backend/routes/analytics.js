@@ -126,6 +126,34 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             risk: ipFrequencies[ip].risk
         })).sort((a,b) => b.count - a.count).slice(0, 5);
 
+        // 5. 🟢 AUTO-SYNC: Store this explicitly aggregated data into MongoDB permanently according to the user / mail.
+        // This gracefully meets the final-year requirement to have a physically populated 'Analytics' collection mapped by email!
+        const Analytics = require('../models/Analytics');
+        const userEmail = req.user.email || 'unknown@user.com'; // Guaranteed via JWT token payload
+
+        await Analytics.findOneAndUpdate(
+            { userId: objectId },
+            {
+                userEmail: userEmail,
+                totalChecks: totalChecks,
+                vpnDetected: vpnDetected,
+                cleanIPs: cleanIPs,
+                riskBreakdown: {
+                    High: riskBreakdown.High,
+                    Medium: riskBreakdown.Medium,
+                    Low: riskBreakdown.Low
+                },
+                threatTypes: {
+                    TOR: threatCounts.TOR,
+                    VPN: threatCounts.VPN,
+                    PROXY: threatCounts.PROXY,
+                    Clean: threatCounts.Clean
+                },
+                lastUpdated: new Date()
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
         // Optional standard route fallback
         if(req.path === '/getallanalytics') return res.status(200).json({});
 

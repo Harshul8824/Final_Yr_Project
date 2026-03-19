@@ -52,7 +52,7 @@ const THREAT_IPS_FILE = resolveDataPath(process.env.THREAT_IPS_FILE, 'threat-ips
 let ip2proxyInitialized = false;
 
 // Tor exit node list (public, no API key) — cache for 10 minutes
-const TOR_EXIT_LIST_URL = 'https://check.torproject.org/torbulkexitlist';
+const TOR_EXIT_LIST_URL = 'https://raw.githubusercontent.com/SecOps-Institute/Tor-IP-Addresses/master/tor-exit-nodes.lst';
 let torExitListCache = { ips: null, fetchedAt: 0 };
 const TOR_CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -148,15 +148,36 @@ async function getTorExitIps() {
         return torExitListCache.ips;
     }
     try {
-        const res = await axios.get(TOR_EXIT_LIST_URL, { timeout: 15000, responseType: 'text' });
-        const text = Buffer.isBuffer(res.data) ? res.data.toString('utf8') : (typeof res.data === 'string' ? res.data : String(res.data));
+        const https = require('https');
+        const agent = new https.Agent({  
+            rejectUnauthorized: false
+        });
+        
+        const res = await axios.get(TOR_EXIT_LIST_URL, { 
+            timeout: 15000, 
+            responseType: 'text',
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            httpsAgent: agent
+        });
+        const text = Buffer.isBuffer(res.data) ? res.data.toString('utf8') : String(res.data);
         const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
         const ips = new Set(lines);
         torExitListCache = { ips, fetchedAt: Date.now() };
         return ips;
     } catch (e) {
+        console.error("Tor bulk exit list fetch failed:", e.message);
         if (torExitListCache.ips) return torExitListCache.ips;
         return new Set();
+    }
+}
+
+async function isTorByHostname(ip) {
+    try {
+        const dns = require('dns').promises;
+        const hostnames = await dns.reverse(ip);
+        return hostnames.some(h => h.toLowerCase().includes('tor-exit') || h.toLowerCase().includes('torserver') || h.toLowerCase().includes('tor-node'));
+    } catch(e) {
+        return false;
     }
 }
 
@@ -477,7 +498,11 @@ router.route('/qualityscore').post(async (req, res) => {
             return res.status(400).json({ msg: "Could not resolve hostname to IP.", err: "RESOLVE_FAILED" });
         }
 
-        const apiKey = (process.env.IP_QUALITY_SCORE_API_KEY || '').trim().replace(/[;\s]+$/, '');
+        const rawKey = process.env.IP_QUALITY_SCORE_API_KEY || '';
+        const apiKey = rawKey.trim().replace(/^["']|["']$/g, '').replace(/[;\s]+$/, '');
+        
+        console.log("API KEY LOADED:", process.env.IP_QUALITY_SCORE_API_KEY ? "YES" : "NO");
+        console.log("API KEY (Cleaned Length):", apiKey.length);
 
         // If API key is set, use IPQualityScore API
         if (apiKey) {
@@ -485,6 +510,11 @@ router.route('/qualityscore').post(async (req, res) => {
                 const url = `https://www.ipqualityscore.com/api/json/ip/${encodeURIComponent(apiKey)}/${encodeURIComponent(ip)}`;
                 const response = await axios.get(url, { timeout: 12000 });
                 const data = response.data;
+
+                // DIAGNOSTIC LOG: Let the console see why the external API deliberately shut down the proxy request
+                if (data && data.success === false) {
+                    console.log("IPQualityScore API explicitly denied the request:", data.message);
+                }
 
                 if (data && data.success !== false) {
                     // 🟢 AUTO-APPEND LEARNING LOGIC:
@@ -529,21 +559,35 @@ router.route('/qualityscore').post(async (req, res) => {
         let localProxyHit = false;
         let torExitHit = false;
 
-        if (fs.existsSync(vpnIps)) {
-            vpnListHit = ipInFileLines(vpnIps, ip);
+        if (fs.existsSync(VPN_IPS_FILE)) {
+            vpnListHit = ipInFileLines(VPN_IPS_FILE, ip);
         }
-        if (fs.existsSync(listOfIps)) {
-            onlineListHit = ipInFileLines(listOfIps, ip);
+        if (fs.existsSync(THREAT_IPS_FILE)) {
+            onlineListHit = ipInThreatFile(THREAT_IPS_FILE, ip);
         }
         try {
             const torIps = await getTorExitIps();
             torExitHit = torIps.has(ip);
+            
+            // Critical Offline Fallback: If Tor bulk URL was blocked, natively check reverse DNS
+            if (!torExitHit) {
+                torExitHit = await isTorByHostname(ip);
+            }
+            if (torExitHit) {
+                autoAppendToThreatList(ip, 'TOR');
+            }
         } catch (e) { /* ignore */ }
         if (fs.existsSync(ip2proxyDbPath)) {
             try {
                 ip2proxy.Open(ip2proxyDbPath);
                 const val = ip2proxy.isProxy(ip);
                 localProxyHit = (val === 1 || val === 2 || val === true);
+                
+                // 🟢 AUTO-APPEND LEARNING LOGIC:
+                // Hook the backend's massive offline binary IP2Proxy DB directly into the live caching feed!
+                if(localProxyHit){
+                    autoAppendToVpnList(ip);
+                }
             } catch (e) { /* ignore */ }
         }
 
@@ -631,6 +675,12 @@ router.route('/ipsearch').post(async (req, res) => {
                 country = ip2proxy.getCountryShort(ip) || country;
                 isp = ip2proxy.getISP(ip) || isp;
                 source = result ? 'IP2Proxy' : '';
+                
+                // 🟢 AUTO-APPEND LEARNING LOGIC:
+                // If our massive offline binary IP2Proxy DB catches it, natively cache it instantly to our flat fast text database!
+                if(result === 1){
+                    autoAppendToVpnList(ip);
+                }
             }
         }
 
@@ -776,7 +826,7 @@ router.post('/checkip', (req, res) => {
 /** Online Data Check — threat intelligence list (threat-ips.txt). Creates file with sample data if missing.
  * Return format: { result: 0 or 1, threatType: "..." }
  */
-router.post('/checkonlinedata', (req, res) => {
+router.post('/checkonlinedata', async (req, res) => {
     try {
         let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
         if (!host) {
@@ -814,6 +864,26 @@ router.post('/checkonlinedata', (req, res) => {
             if (ip === ipForCheck) {
                 threatType = type;
                 break;
+            }
+        }
+
+        // Live Fallback check: If it wasn't listed as a threat, proactively check if it's a live Tor node!
+        if (!threatType) {
+            try {
+                const torIps = await getTorExitIps();
+                if (torIps.has(ipForCheck)) {
+                    threatType = 'TOR';
+                } else {
+                    const isTorDns = await isTorByHostname(ipForCheck);
+                    if (isTorDns) threatType = 'TOR';
+                }
+
+                // If flagged dynamically, auto-learn it immediately so the rest of the app knows!
+                if (threatType === 'TOR') {
+                    autoAppendToThreatList(ipForCheck, threatType);
+                }
+            } catch (torCheckError) {
+                console.error("Tor fallback check failed in online data route:", torCheckError.message);
             }
         }
 

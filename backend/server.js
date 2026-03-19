@@ -1,12 +1,9 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, 'config.env') });
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
 const path = require('path');
 const mongoose = require('mongoose');
-
-// Load .env first; then config.env so config.env overrides
-require('dotenv').config();
-require('dotenv').config({ path: path.join(__dirname, 'config.env') });
 
 
 const app = express();
