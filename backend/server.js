@@ -34,7 +34,7 @@ const batchProcess = require('./routes/batchProcess');
 const analytics = require('./routes/analytics');
 const advancedSearch = require('./routes/advancedSearch');
 const auth = require('./routes/auth');
-
+const history = require('./routes/history');
 
 app.use('/api/whois', whois);
 app.use('/api/vpndetect', vpndetect);
@@ -42,6 +42,7 @@ app.use('/api/batchprocess', batchProcess);
 app.use('/api/analytics', analytics);
 app.use('/api/advancedsearch', advancedSearch);
 app.use('/api/auth', auth);
+app.use('/api/history', history);
 
 
 

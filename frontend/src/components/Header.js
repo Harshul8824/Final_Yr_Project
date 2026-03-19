@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Search, BarChart3, FileText, Network, LogIn, LogOut, UserPlus } from 'lucide-react';
+import { Shield, Search, BarChart3, FileText, Network, LogIn, LogOut, UserPlus, History as HistoryIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Header = ({ currentPage, onPageChange }) => {
@@ -7,6 +7,7 @@ const Header = ({ currentPage, onPageChange }) => {
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+    { id: 'history', label: 'History', icon: HistoryIcon },
     { id: 'whois', label: 'WHOIS Lookup', icon: Search },
     { id: 'vpn-detection', label: 'VPN Detection', icon: Shield },
     { id: 'batch-process', label: 'Batch Process', icon: FileText },

@@ -7,6 +7,8 @@ import VpnDetection from './components/VpnDetection';
 import NetworkStatus from './components/NetworkStatus';
 import Login from './components/Login';
 import Register from './components/Register';
+import BatchProcessing from './components/BatchProcessing';
+import History from './components/History';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function AppInner() {
@@ -36,6 +38,8 @@ function AppInner() {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
+      case 'history':
+        return <History />;
       case 'whois':
         return <WhoisLookup />;
       case 'vpn-detection':
@@ -45,17 +49,7 @@ function AppInner() {
       case 'register':
         return <Register onSuccess={() => safeSetPage('dashboard')} onGoLogin={() => safeSetPage('login')} />;
       case 'batch-process':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Batch Processing</h2>
-              <p className="text-gray-600 mb-8">Upload a file with multiple IPs for batch analysis.</p>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                <p className="text-yellow-800">This feature is coming soon!</p>
-              </div>
-            </div>
-          </div>
-        );
+        return <BatchProcessing />;
       case 'network-scan':
         return (
           <div className="max-w-4xl mx-auto p-6">
@@ -106,10 +100,10 @@ function AppInner() {
       <main className={isAuthPage ? '' : 'py-6'}>
         {renderPage()}
       </main>
-      
+
       {/* Network Status */}
       <NetworkStatus />
-      
+
       {/* Toast notifications */}
       <Toaster
         position="top-right"

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, Search, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { vpnDetectionService } from '../services/api';
+import { vpnDetectionService, historyService } from '../services/api';
 import ResultCard from './ResultCard';
 import DebugInfo from './DebugInfo';
 
@@ -55,6 +55,8 @@ const VpnDetection = () => {
     setError(null);
     setResults({});
 
+    let finalResults = {}; // Collect results to save to history
+
     // Run all detection methods with better error handling
     for (const method of detectionMethods) {
       setLoading(prev => ({ ...prev, [method.id]: true }));
@@ -69,7 +71,6 @@ const VpnDetection = () => {
           case 'qualityscore':
             response = await vpnDetectionService.qualityScore(host.trim());
             break;
-          // ML intel score removed - using MERN stack only
           case 'ipsearch':
             response = await vpnDetectionService.ipSearch(host.trim());
             break;
@@ -85,6 +86,7 @@ const VpnDetection = () => {
 
         // Validate response before setting
         if (response && typeof response === 'object') {
+          finalResults[method.id] = response;
           setResults(prev => ({ ...prev, [method.id]: response }));
         } else {
           setResults(prev => ({
@@ -113,6 +115,58 @@ const VpnDetection = () => {
       } finally {
         setLoading(prev => ({ ...prev, [method.id]: false }));
       }
+    }
+
+    // Save to history once all methods are completed
+    try {
+      let riskLevel = 'Low';
+      let isVpn = false;
+      let isTor = false;
+      let isProxy = false;
+      let fraudScore = finalResults.qualityscore?.result?.fraud_score || 0;
+
+      if (finalResults.checkip?.result === 1) isVpn = true;
+      if (finalResults.qualityscore?.result?.vpn) isVpn = true;
+      if (finalResults.qualityscore?.result?.tor) isTor = true;
+      if (finalResults.qualityscore?.result?.proxy) isProxy = true;
+      if (finalResults.checkonlinedata?.result === 1) isVpn = true;
+      if (finalResults.ipsearch?.result === 1) isProxy = true;
+
+      if (isTor || fraudScore >= 80 || finalResults.checkonlinedata?.result === 1) riskLevel = 'High';
+      else if (isVpn || isProxy || fraudScore >= 50) riskLevel = 'Medium';
+      
+      await historyService.save({
+        ip: host.trim(),
+        overallRisk: riskLevel,
+        results: {
+          qualityScore: {
+            isVPN: !!finalResults.qualityscore?.result?.vpn,
+            isProxy: !!finalResults.qualityscore?.result?.proxy,
+            isTor: !!finalResults.qualityscore?.result?.tor,
+            fraudScore: fraudScore,
+          },
+          localIPSearch: {
+            result: finalResults.ipsearch?.result,
+            proxyType: finalResults.ipsearch?.details?.proxyType,
+            country: finalResults.ipsearch?.details?.country,
+            isp: finalResults.ipsearch?.details?.isp,
+          },
+          vpnListCheck: {
+            result: finalResults.checkip?.result,
+            matchedIP: finalResults.checkip?.matchedIP,
+          },
+          onlineDataCheck: {
+            result: finalResults.checkonlinedata?.result,
+            threatType: finalResults.checkonlinedata?.threatType,
+          },
+          portScan: {
+            status: finalResults.vpnports?.status,
+            openPortsCount: finalResults.vpnports?.openPortsCount,
+          }
+        }
+      });
+    } catch (saveErr) {
+      console.error('Failed to save history to MongoDB:', saveErr);
     }
   };
 

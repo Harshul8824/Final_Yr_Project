@@ -160,4 +160,19 @@ export const advancedSearchService = {
   },
 };
 
+export const historyService = {
+  save: async (data) => {
+    const response = await api.post('/history/save', data);
+    return response.data;
+  },
+  getMyHistory: async () => {
+    const response = await api.get('/history/myhistory');
+    return response.data;
+  },
+  clearHistory: async () => {
+    const response = await api.delete('/history/clear');
+    return response.data;
+  }
+};
+
 export default api;
