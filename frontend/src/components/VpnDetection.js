@@ -99,7 +99,7 @@ const VpnDetection = () => {
         console.error(`Error in ${method.name}:`, err);
         let errorMessage;
         if (err.isNetworkError) {
-          errorMessage = 'Network Error: Unable to connect to the server. Please ensure the backend is running on port 5000.';
+          errorMessage = 'Network Error: Unable to connect to the server.';
         } else {
           errorMessage = err.response?.data?.msg || err.message || 'An error occurred';
         }

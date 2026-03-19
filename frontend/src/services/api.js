@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api';
+// const API_BASE_URL = 'https://final-yr-project-1-v8hj.onrender.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -50,7 +51,7 @@ api.interceptors.response.use(
     // Handle network errors specifically
     if (!error.response) {
       // Network error - backend not running or connection failed
-      const networkError = new Error('Network Error: Unable to connect to the server. Please ensure the backend is running on port 5000.');
+      const networkError = new Error('Network Error: Unable to connect to the server.');
       networkError.isNetworkError = true;
       return Promise.reject(networkError);
     }

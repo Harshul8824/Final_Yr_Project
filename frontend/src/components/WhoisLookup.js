@@ -25,7 +25,7 @@ const WhoisLookup = () => {
       setResult(response);
     } catch (err) {
       if (err.isNetworkError) {
-        setError('Network Error: Unable to connect to the server. Please ensure the backend is running on port 5000.');
+        setError('Network Error: Unable to connect to the server.');
       } else {
         setError(err.response?.data?.msg || err.message || 'An error occurred');
       }

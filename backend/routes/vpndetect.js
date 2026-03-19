@@ -141,18 +141,18 @@ router.use(requireAuth);
 
 
 
-    /**vpn port scan
-     * 
-     * @param {String} url 
-     */
+/**vpn port scan
+ * 
+ * @param {String} url 
+ */
 
 router.route('/vpnports').post(async (req, res) => {
     // Set response timeout
     res.setTimeout(60000, () => {
         if (!res.headersSent) {
-            res.status(408).json({ 
-                msg: "Port scan timeout. The scan is taking too long.", 
-                error: "TIMEOUT" 
+            res.status(408).json({
+                msg: "Port scan timeout. The scan is taking too long.",
+                error: "TIMEOUT"
             });
         }
     });
@@ -190,17 +190,17 @@ router.route('/vpnports').post(async (req, res) => {
         });
 
         // Add timeout to the scan
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Port scan timeout')), 55000)
         );
 
         const report = await Promise.race([scanPromise, timeoutPromise]);
 
         if (!report || Object.keys(report).length === 0) {
-            return res.status(404).json({ 
-                status: "Host is down", 
-                msg: "No scan results available", 
-                ports: [] 
+            return res.status(404).json({
+                status: "Host is down",
+                msg: "No scan results available",
+                ports: []
             });
         }
 
@@ -212,12 +212,12 @@ router.route('/vpnports').post(async (req, res) => {
         for (let item in report) {
             try {
                 const scanItem = report[item];
-                
+
                 // Check if host is up
                 const runstats = scanItem?.runstats?.[0];
                 const hosts = runstats?.hosts?.[0];
                 const hostStatus = hosts?.item?.up;
-                
+
                 if (hostStatus === "1" || hostStatus === 1) {
                     hostUp = true;
 
@@ -256,10 +256,10 @@ router.route('/vpnports').post(async (req, res) => {
                             // Helper function to safely extract state - RETURNS STRING
                             const extractState = (p) => {
                                 const stateData = p?.state;
-                                
+
                                 // If it's already a string
                                 if (typeof stateData === 'string') return stateData;
-                                
+
                                 // If it's an array (common nmap format)
                                 if (Array.isArray(stateData)) {
                                     const stateObj = stateData[0];
@@ -267,13 +267,13 @@ router.route('/vpnports').post(async (req, res) => {
                                     if (stateObj?.state) return stateObj.state;
                                     return 'unknown';
                                 }
-                                
+
                                 // If it's an object
                                 if (stateData && typeof stateData === 'object') {
                                     if (stateData.item?.state) return stateData.item.state;
                                     if (stateData.state) return stateData.state;
                                 }
-                                
+
                                 // Fallback
                                 return p?.item?.state || 'open';
                             };
@@ -350,16 +350,16 @@ router.route('/vpnports').post(async (req, res) => {
 
     } catch (error) {
         console.error('VPN Port Scan Error:', error);
-        
+
         if (error.message.includes('timeout')) {
-            res.status(408).json({ 
+            res.status(408).json({
                 msg: "Port scan timeout. The host might be unreachable or firewall is blocking.",
                 error: "TIMEOUT",
                 status: "Timeout",
                 ports: []
             });
         } else {
-            res.status(500).json({ 
+            res.status(500).json({
                 msg: "Port scan failed. Please ensure nmap is installed and the host is reachable.",
                 error: "SCAN_FAILED",
                 status: "Error",
@@ -791,11 +791,11 @@ router.post('/checkonlinedata', (req, res) => {
 router.route('/getrealip').post(function (req, res) {
     try {
         // need access to IP address here
-        var ip = (req.headers['x-forwarded-for'] || '').split(',').pop().trim() || 
-             req.connection.remoteAddress || 
-             req.socket.remoteAddress || 
-             req.connection.socket.remoteAddress
-        console.log(ip,req.headers);
+        var ip = (req.headers['x-forwarded-for'] || '').split(',').pop().trim() ||
+            req.connection.remoteAddress ||
+            req.socket.remoteAddress ||
+            req.connection.socket.remoteAddress
+        console.log(ip, req.headers);
         res.json({ ip: ip });
     } catch (error) {
         res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });

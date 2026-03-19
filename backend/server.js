@@ -15,11 +15,14 @@ const port = parseInt(process.env.PORT, 10) || 5000;
 // app.use(cors());
 app.use(cors({
   origin: [
-    "http://localhost:3000",
-    "https://final-year-project-os5j.vercel.app/"
+    'http://localhost:3000',
+    'https://your-vercel-app.vercel.app', // apna vercel URL daalo
+    '*' // ya temporarily sab allow karo
   ],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
@@ -40,8 +43,15 @@ app.use('/api/analytics', analytics);
 app.use('/api/advancedsearch', advancedSearch);
 app.use('/api/auth', auth);
 
+
+
 async function start() {
-  const mongoUri = process.env.MONGO_URI;
+  //connect to local DB
+  // const mongoUri = process.env.MONGO_URI;
+
+  //connest atlas db
+  const mongoUri = process.env.DATABASE.replace('<PASSWORD>', process.env.DB_PASSWORD);
+
   if (!mongoUri) {
     console.error('MONGO_URI is missing in backend/config.env');
     process.exit(1);
