@@ -4,11 +4,11 @@ import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import WhoisLookup from './components/WhoisLookup';
 import VpnDetection from './components/VpnDetection';
-import NetworkStatus from './components/NetworkStatus';
 import Login from './components/Login';
 import Register from './components/Register';
 import BatchProcessing from './components/BatchProcessing';
 import History from './components/History';
+import Analytics from './components/Analytics';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function AppInner() {
@@ -40,6 +40,8 @@ function AppInner() {
         return <Dashboard />;
       case 'history':
         return <History />;
+      case 'analytics':
+        return <Analytics />;
       case 'whois':
         return <WhoisLookup />;
       case 'vpn-detection':
@@ -56,18 +58,6 @@ function AppInner() {
             <div className="text-center py-12">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Network Scanning</h2>
               <p className="text-gray-600 mb-8">Advanced network port scanning and analysis.</p>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                <p className="text-yellow-800">This feature is coming soon!</p>
-              </div>
-            </div>
-          </div>
-        );
-      case 'analytics':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h2>
-              <p className="text-gray-600 mb-8">Detailed analytics and reporting dashboard.</p>
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                 <p className="text-yellow-800">This feature is coming soon!</p>
               </div>
@@ -100,9 +90,6 @@ function AppInner() {
       <main className={isAuthPage ? '' : 'py-6'}>
         {renderPage()}
       </main>
-
-      {/* Network Status */}
-      <NetworkStatus />
 
       {/* Toast notifications */}
       <Toaster

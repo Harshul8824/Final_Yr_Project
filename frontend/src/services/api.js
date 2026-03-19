@@ -142,10 +142,10 @@ export const batchProcessService = {
 };
 
 export const analyticsService = {
-  getAllAnalytics: async () => {
-    const response = await api.get('/analytics/getallanalytics');
+  getDashboard: async () => {
+    const response = await api.get('/analytics/dashboard');
     return response.data;
-  },
+  }
 };
 
 export const advancedSearchService = {
