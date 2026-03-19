@@ -10,12 +10,22 @@ import Register from './components/Register';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function AppInner() {
-  const [currentPage, setCurrentPage] = useState('dashboard');
   const { isAuthenticated, initializing } = useAuth();
+  // By default go to login if not authenticated
+  const [currentPage, setCurrentPage] = useState('login');
+
+  React.useEffect(() => {
+    if (!initializing) {
+      if (!isAuthenticated && currentPage !== 'login' && currentPage !== 'register') {
+        setCurrentPage('login');
+      } else if (isAuthenticated && (currentPage === 'login' || currentPage === 'register')) {
+        setCurrentPage('dashboard');
+      }
+    }
+  }, [initializing, isAuthenticated, currentPage]);
 
   const safeSetPage = (next) => {
-    // Protect VPN detection page behind login
-    if (next === 'vpn-detection' && !isAuthenticated) {
+    if (!isAuthenticated && next !== 'login' && next !== 'register') {
       setCurrentPage('login');
       return;
     }
@@ -31,9 +41,9 @@ function AppInner() {
       case 'vpn-detection':
         return <VpnDetection />;
       case 'login':
-        return <Login onSuccess={() => safeSetPage('vpn-detection')} onGoRegister={() => safeSetPage('register')} />;
+        return <Login onSuccess={() => safeSetPage('dashboard')} onGoRegister={() => safeSetPage('register')} />;
       case 'register':
-        return <Register onSuccess={() => safeSetPage('vpn-detection')} onGoLogin={() => safeSetPage('login')} />;
+        return <Register onSuccess={() => safeSetPage('dashboard')} onGoLogin={() => safeSetPage('login')} />;
       case 'batch-process':
         return (
           <div className="max-w-4xl mx-auto p-6">
@@ -71,27 +81,29 @@ function AppInner() {
           </div>
         );
       default:
-        return <Dashboard />;
+        return <Login onSuccess={() => safeSetPage('dashboard')} onGoRegister={() => safeSetPage('register')} />;
     }
   };
 
   if (initializing) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
         <div className="card">
           <div className="flex items-center">
             <div className="loading-spinner"></div>
-            <span className="ml-3 text-gray-700">Loading...</span>
+            <span className="ml-3 text-gray-700 font-medium">Loading session...</span>
           </div>
         </div>
       </div>
     );
   }
 
+  const isAuthPage = currentPage === 'login' || currentPage === 'register';
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header currentPage={currentPage} onPageChange={safeSetPage} />
-      <main className="py-6">
+    <div className="min-h-screen bg-transparent">
+      {!isAuthPage && <Header currentPage={currentPage} onPageChange={safeSetPage} />}
+      <main className={isAuthPage ? '' : 'py-6'}>
         {renderPage()}
       </main>
       

@@ -15,15 +15,15 @@ const Header = ({ currentPage, onPageChange }) => {
   ];
 
   return (
-    <header style={{backgroundColor: 'white', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', borderBottom: '1px solid #e5e7eb'}}>
-      <div style={{maxWidth: '80rem', margin: '0 auto', padding: '0 1rem'}}>
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '4rem'}}>
+    <header className="bg-white shadow-sm" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex justify-between items-center" style={{ height: '4rem' }}>
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
               <Shield className="h-8 w-8 text-primary-600" />
-              <h1 className="ml-2 text-xl font-bold text-gray-900">
-                VPN Detection System
+              <h1 className="ml-2 text-xl font-bold text-gray-900 hidden xl:block">
+                VPN Detection
               </h1>
             </div>
           </div>
