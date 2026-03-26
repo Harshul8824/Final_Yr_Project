@@ -13,7 +13,7 @@ const port = parseInt(process.env.PORT, 10) || 5000;
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://your-vercel-app.vercel.app', // apna vercel URL daalo
+    'final-yr-project-three.vercel.app', // apna vercel URL daalo
     '*' // ya temporarily sab allow karo
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
