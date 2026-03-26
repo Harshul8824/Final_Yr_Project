@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Trash2, Clock, Shield, AlertTriangle, CheckCircle, Search } from 'lucide-react';
+import { Trash2, Clock, AlertTriangle, CheckCircle, Search } from 'lucide-react';
 import { historyService } from '../services/api';
 
 const History = () => {

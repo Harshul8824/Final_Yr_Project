@@ -1,9 +1,8 @@
-import React from 'react';
-import { Shield, Search, BarChart3, FileText, Network, LogIn, LogOut, UserPlus, History as HistoryIcon } from 'lucide-react';
+import { Shield, Search, BarChart3, FileText, LogIn, LogOut, UserPlus, History as HistoryIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Header = ({ currentPage, onPageChange }) => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
 
   const navigationItems = [
     { id: 'history', label: 'History', icon: HistoryIcon },

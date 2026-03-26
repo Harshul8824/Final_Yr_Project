@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Shield, Search, FileText, Network, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import {Shield, Search, FileText} from 'lucide-react';
 import { analyticsService } from '../services/api';
 
 const Dashboard = () => {
-  const [analytics, setAnalytics] = useState(null);
+  // const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,37 +15,13 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const data = await analyticsService.getDashboard();
-      setAnalytics(data);
+      // setAnalytics(data);
     } catch (err) {
       setError(err.response?.data?.msg || err.message || 'Failed to fetch analytics');
     } finally {
       setLoading(false);
     }
   };
-
-  // const stats = [
-  //   {
-  //     name: 'Total Data Points',
-  //     value: analytics?.totalData || '0',
-  //     icon: BarChart3,
-  //     color: 'text-blue-600',
-  //     bgColor: 'bg-blue-100',
-  //   },
-  //   {
-  //     name: 'Training Data',
-  //     value: analytics?.trainData || '0',
-  //     icon: Activity,
-  //     color: 'text-green-600',
-  //     bgColor: 'bg-green-100',
-  //   },
-  //   {
-  //     name: 'Test Data',
-  //     value: analytics?.testData || '0',
-  //     icon: BarChart3,
-  //     color: 'text-purple-600',
-  //     bgColor: 'bg-purple-100',
-  //   },
-  // ];
 
   const features = [
     {
@@ -122,7 +98,7 @@ const Dashboard = () => {
             </div>
           );
         })}
-      </div> 
+      </div>
 
 
       {/* Quick Actions */}
