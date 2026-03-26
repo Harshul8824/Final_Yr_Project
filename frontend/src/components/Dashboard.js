@@ -14,7 +14,7 @@ const Dashboard = () => {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const data = await analyticsService.getDashboard();
+      // const data = await analyticsService.getDashboard();
       // setAnalytics(data);
     } catch (err) {
       setError(err.response?.data?.msg || err.message || 'Failed to fetch analytics');
