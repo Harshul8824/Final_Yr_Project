@@ -12,7 +12,7 @@ const port = parseInt(process.env.PORT, 10) || 5000;
 // app.use(cors());
 app.use(cors({
   origin: [
-    'https://final-yr-project-three.vercel.app/', // apna vercel URL daalo
+    'https://final-yr-project-three.vercel.app', // apna vercel URL daalo
     'http://localhost:3000'
   ],
   credentials: true,
