@@ -57,12 +57,6 @@ npm start
 - Error boundary management
 - CORS configuration
 
-### ML Integration
-- Python scripts for ML model training
-- Real-time prediction APIs
-- Batch processing capabilities
-- Analytics and logging
-
 ## 🎨 Frontend Features
 
 ### Components
@@ -95,20 +89,6 @@ npm start
 - Secure API communication
 - Error boundary handling
 - CSRF protection
-
-## 📊 ML Pipeline
-
-### Data Processing
-- CSV data ingestion
-- Feature extraction
-- Model training with scikit-learn
-- Real-time prediction
-- Batch processing
-
-### Models
-- OneClassSVM for anomaly detection
-- OneHotEncoder for categorical data
-- Model persistence with joblib
 
 ## 🧪 Testing
 
@@ -208,8 +188,7 @@ FormData with 'ipFile'
 ### Common Issues
 1. **CORS Errors**: Check backend CORS configuration
 2. **API Timeouts**: Verify timeout settings
-3. **ML Model Errors**: Ensure Python dependencies
-4. **Build Errors**: Clear node_modules and reinstall
+3. **Build Errors**: Clear node_modules and reinstall
 
 ### Debug Mode
 - Backend: Set `DEBUG=true` in environment
@@ -221,12 +200,10 @@ FormData with 'ipFile'
 ### System Metrics
 - Total data points processed
 - Training vs test data split
-- ML model performance
 - API response times
 - Error rates
 
 ### Logging
-- ML model training logs
 - Data generation logs
 - API request/response logs
 - Error tracking
@@ -262,4 +239,4 @@ This project is developed for educational purposes as part of a final year proje
 
 ---
 
-**Status**: ✅ Pure MERN Stack Complete | ✅ ML Removed | ✅ All Features Working
+**Status**: ✅ Pure MERN Stack Complete | ✅ Cybersecurity | ✅ All Features Working
