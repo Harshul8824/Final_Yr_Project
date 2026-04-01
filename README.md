@@ -57,11 +57,13 @@ graph TD
         IPQualityScore["IPQualityScore API"]
         GetIPIntel["GetIPIntel API"]
         LocalFiles[("Local CSV/TXT Datasets<br/>(vpn-ips.txt etc.)")]
+        MongoDB[("MongoDB Database<br/>(IPHistory, Users, Analytics)")]
         
         VPNDetectRouter -.->|"Query"| IPQualityScore
         VPNDetectRouter -.->|"Query"| GetIPIntel
         VPNDetectRouter -->|"Lookup"| LocalFiles
         BatchProcEngine -->|"Bulk Lookup"| LocalFiles
+        BackendAPI -->|"Read/Write logs"| MongoDB
     end
 ```
 
@@ -174,6 +176,7 @@ npm test
 ```env
 # Backend
 PORT=5000
+MONGO_URI=your_mongodb_connection_string
 IP_QUALITY_SCORE_API_KEY=your_key
 GET_IP_INTEL_CONTACT_EMAIL=your_email
 
@@ -182,9 +185,9 @@ REACT_APP_API_URL=http://localhost:5000/api
 ```
 
 ### Dependencies
-- **Backend**: Express, Axios, CORS, LibNmap, IP2Proxy
+- **Backend**: Express, Mongoose, Axios, CORS, LibNmap, IP2Proxy
 - **Frontend**: React.js, JavaScript, Custom CSS, Axios
-- **Database**: File-based storage (no external database required)
+- **Database**: MongoDB (Mongoose ODM for User Auth, IP History & Analytics)
 
 ## 🚀 Deployment
 
@@ -212,6 +215,7 @@ Render is an excellent free-tier service for hosting the Node.js/Express backend
    - **Build Command**: `npm install`
    - **Start Command**: `npm start` (or `node server.js`)
 5. Under **Environment Variables**, add all keys from your `.env` file:
+   - `MONGO_URI`
    - `IP_QUALITY_SCORE_API_KEY`
    - `GET_IP_INTEL_CONTACT_EMAIL`
 6. Click **Create Web Service**. Once deployed, copy the Render URL and update your Vercel `REACT_APP_API_URL` variable.
@@ -275,8 +279,6 @@ FormData with 'ipFile'
 ### Planned Features
 - Real-time monitoring dashboard
 - Advanced ML models
-- Database integration
-- User authentication
 - API rate limiting
 - Comprehensive testing suite
 
