@@ -84,7 +84,7 @@ export const vpnDetectionService = {
     return response.data;
   },
 
-  // ML intel score removed - using MERN stack only
+
 
   ipSearch: async (host) => {
     const response = await api.post('/vpndetect/ipsearch', { host });

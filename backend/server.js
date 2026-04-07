@@ -12,7 +12,7 @@ const port = parseInt(process.env.PORT, 10) || 5000;
 // app.use(cors());
 app.use(cors({
   origin: [
-    'https://final-yr-project-three.vercel.app', // apna vercel URL daalo
+    'https://final-yr-project-three.vercel.app',
     'http://localhost:3000'
   ],
   credentials: true,
@@ -69,10 +69,14 @@ async function start() {
     process.exit(1);
   }
 
-  app.listen(port, () => {
-    console.log(`Server is running on port: ${port}`);
-    console.log(`MERN Stack VPN Detection System - Backend Ready!`);
-  });
+  if (process.env.NODE_ENV !== 'test') {
+    app.listen(port, () => {
+      console.log(`Server is running on port: ${port}`);
+      console.log(`MERN Stack VPN Detection System - Backend Ready!`);
+    });
+  }
 }
 
 start();
+
+module.exports = app;
