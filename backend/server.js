@@ -4,12 +4,31 @@ const cors = require('cors');
 const fileUpload = require('express-fileupload');
 const path = require('path');
 const mongoose = require('mongoose');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
 
 
 const app = express();
 const port = parseInt(process.env.PORT, 10) || 5000;
 
-// app.use(cors());
+//Global API limiter
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many req for this IP, please try again after 15 minutes'
+})
+
+app.use(globalLimiter);
+
+//manually disable  "x-powered-by - express" so protect that application tech stack
+app.disable('x-powered-by');
+
+//security middleware
+app.use(helmet());  //sanitize http headers
+
 app.use(cors({
   origin: [
     'https://final-yr-project-three.vercel.app',
@@ -22,6 +41,16 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+//NOSQL injection protection
+app.use(mongoSanitize());
+
+//xss clean
+app.use(xss());
+
+//prevent http parameter pollution
+app.use(hpp());
+
 app.use(fileUpload());
 
 

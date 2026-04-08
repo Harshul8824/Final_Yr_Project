@@ -21,6 +21,10 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-fileupload": "^1.4.3",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.3.2",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
     "ip2proxy-nodejs": "^2.2.0",
     "json-to-csv": "^1.0.0",
     "jsonwebtoken": "^9.0.2",
@@ -28,7 +32,8 @@
     "mongoose": "^9.2.4",
     "multer": "^2.1.1",
     "node-nmap": "^4.0.0",
-    "whois-json": "^2.0.4"
+    "whois-json": "^2.0.4",
+    "xss-clean": "^0.1.4"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
