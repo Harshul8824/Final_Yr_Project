@@ -21,7 +21,7 @@ const globalLimiter = rateLimit({
   message: 'Too many req for this IP, please try again after 15 minutes'
 })
 
-app.use(globalLimiter);
+  app.use(globalLimiter);
 
 //manually disable  "x-powered-by - express" so protect that application tech stack
 app.disable('x-powered-by');

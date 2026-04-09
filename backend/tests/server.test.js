@@ -41,7 +41,6 @@ describe('Rate limiting test', () => {
 
     expect(blockedResponse.text).toContain('Too many attempts');
   })
-
 });
 
 
