@@ -10,12 +10,8 @@ const fs = require('fs');
 const utils = require('../utilities/utils');
 const { requireAuth } = require('../middleware/auth');
 
-// Optional file paths for VPN/IP lists (create these files or set env vars to enable)
-const vpnIps = process.env.VPN_IPS_PATH || path.join(__dirname, '..', 'MLServerCode', 'scripts', 'IPv4_VPNs.txt');
-const listOfIps = process.env.LIST_OF_IPS_PATH || path.join(__dirname, '..', 'MLServerCode', 'scripts', 'ips.txt');
-const ip2proxyDbPath = process.env.IP2PROXY_DATABASE_PATH || path.join(__dirname, '..', 'data', 'PX11-Lite.BIN');
+const ip2proxyDbPath = process.env.IP2PROXY_DATABASE_PATH || path.join(__dirname, '..', 'data', 'IP2PROXY-LITE-PX8.BIN');
 
-// New data-driven paths for cyb branch (IP2Proxy, VPN list, Threat list)
 // Resolve relative paths to absolute paths
 const resolveDataPath = (envPath, defaultFileName) => {
     if (envPath) {
@@ -149,12 +145,12 @@ async function getTorExitIps() {
     }
     try {
         const https = require('https');
-        const agent = new https.Agent({  
+        const agent = new https.Agent({
             rejectUnauthorized: false
         });
-        
-        const res = await axios.get(TOR_EXIT_LIST_URL, { 
-            timeout: 15000, 
+
+        const res = await axios.get(TOR_EXIT_LIST_URL, {
+            timeout: 15000,
             responseType: 'text',
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
             httpsAgent: agent
@@ -176,7 +172,7 @@ async function isTorByHostname(ip) {
         const dns = require('dns').promises;
         const hostnames = await dns.reverse(ip);
         return hostnames.some(h => h.toLowerCase().includes('tor-exit') || h.toLowerCase().includes('torserver') || h.toLowerCase().includes('tor-node'));
-    } catch(e) {
+    } catch (e) {
         return false;
     }
 }
@@ -240,6 +236,7 @@ router.route('/vpnports').post(async (req, res) => {
         );
 
         const report = await Promise.race([scanPromise, timeoutPromise]);
+        console.log(report);
 
         if (!report || Object.keys(report).length === 0) {
             return res.status(404).json({
@@ -256,6 +253,7 @@ router.route('/vpnports').post(async (req, res) => {
 
         for (let item in report) {
             try {
+                // console.log(item);
                 const scanItem = report[item];
 
                 // Check if host is up
@@ -388,7 +386,7 @@ router.route('/vpnports').post(async (req, res) => {
             const detectedIp = await resolveToIp(host);
             // Extra layer of whitelist protection for global public DNS providers 
             const isWhitelist = ['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1'].includes(detectedIp);
-            
+
             if (detectedIp && !isWhitelist) {
                 autoAppendToVpnList(detectedIp);
             }
@@ -431,57 +429,6 @@ router.route('/vpnports').post(async (req, res) => {
     }
 });
 
-
-/**ML running for ip cidr
- * 
- * @param {String} hostipaddr 
- */
-router.route('/checkcidr').post(async (req, res) => {
-    try {
-        let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
-        if (!host) {
-            return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
-        }
-
-
-        var dataToSend;
-        // spawn new child process to call the python script
-        const pythonExec = exec(`python ./scripts/checkIp.py ${host}`, { cwd: "./MLServerCode/" }, function (err, stdout, stderr) {
-            if (stdout) {
-                dataToSend = stdout;
-                dataToSend = dataToSend == 'true' ? 1 : 0;
-                res.json({ result: dataToSend });
-                return;
-            }
-            else if (err) {
-                res.status(500).json({ msg: "Some error occured. Please try again later", err: err.message });
-                return;
-            }
-            else {
-                res.status(500).json({ msg: "Some error occured. Please try again later", err: "" });
-
-            }
-        });
-        // collect data from script
-        // python.stdout.on('data', function (data) {
-        //     console.log('Pipe data from python script ...');
-        //     dataToSend = data.toString();
-        // });
-        // // in close event we are sure that stream from child process is closed
-        // python.on('close', (code) => {
-        //     console.log(`child process close all stdio with code ${code}`);
-        //     // send data to browser
-        //     res.json({ checkIp: dataToSend })
-        // });
-
-
-
-    } catch (error) {
-        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
-    }
-
-});
-
 /** Quality Score — IPQualityScore API when key set, else local checks (Tor + VPN list + online list + IP2Proxy)
  * @param {string} host
  */
@@ -500,7 +447,7 @@ router.route('/qualityscore').post(async (req, res) => {
 
         const rawKey = process.env.IP_QUALITY_SCORE_API_KEY || '';
         const apiKey = rawKey.trim().replace(/^["']|["']$/g, '').replace(/[;\s]+$/, '');
-        
+
         console.log("API KEY LOADED:", process.env.IP_QUALITY_SCORE_API_KEY ? "YES" : "NO");
         console.log("API KEY (Cleaned Length):", apiKey.length);
 
@@ -568,7 +515,7 @@ router.route('/qualityscore').post(async (req, res) => {
         try {
             const torIps = await getTorExitIps();
             torExitHit = torIps.has(ip);
-            
+
             // Critical Offline Fallback: If Tor bulk URL was blocked, natively check reverse DNS
             if (!torExitHit) {
                 torExitHit = await isTorByHostname(ip);
@@ -582,10 +529,10 @@ router.route('/qualityscore').post(async (req, res) => {
                 ip2proxy.Open(ip2proxyDbPath);
                 const val = ip2proxy.isProxy(ip);
                 localProxyHit = (val === 1 || val === 2 || val === true);
-                
+
                 // 🟢 AUTO-APPEND LEARNING LOGIC:
                 // Hook the backend's massive offline binary IP2Proxy DB directly into the live caching feed!
-                if(localProxyHit){
+                if (localProxyHit) {
                     autoAppendToVpnList(ip);
                 }
             } catch (e) { /* ignore */ }
@@ -609,8 +556,6 @@ router.route('/qualityscore').post(async (req, res) => {
         res.status(500).json({ msg: "Quality Score check failed.", err: error.message || String(error) });
     }
 });
-
-// ML intel score route removed - using MERN stack only
 
 //local search
 
@@ -675,10 +620,10 @@ router.route('/ipsearch').post(async (req, res) => {
                 country = ip2proxy.getCountryShort(ip) || country;
                 isp = ip2proxy.getISP(ip) || isp;
                 source = result ? 'IP2Proxy' : '';
-                
+
                 // 🟢 AUTO-APPEND LEARNING LOGIC:
                 // If our massive offline binary IP2Proxy DB catches it, natively cache it instantly to our flat fast text database!
-                if(result === 1){
+                if (result === 1) {
                     autoAppendToVpnList(ip);
                 }
             }
@@ -718,63 +663,7 @@ router.route('/ipsearch').post(async (req, res) => {
     }
 });
 
-/**check(ml) running for organisation
- * 
- * @param {String} hostipaddr 
- */
-router.route('/checkorg').post(async (req, res) => {
-    try {
-        let host = req.body && typeof req.body.host === 'string' ? req.body.host : "";
-        if (!host) {
-            return res.status(400).json({ msg: "Please provide a host name of ip addresss" });
-        }
-        // if (!utils.isValidIPaddress(host)) {
-        //     host = utils.extractHostname(host);
-        //     // res.json(host)
-        //     console.log(host);
-        // }
-        const result = await whoisjson(host);
-        const stringResult = `{"orgName":"${result.orgName}"}`
 
-        // res.json(stringResult);
-
-        var dataToSend;
-        // spawn new child process to call the python script
-        const pythonExec = exec(`python ./scripts/checkOrg.py << ${stringResult}`, { cwd: "./MLServerCode/" }, function (err, stdout, stderr) {
-            if (stdout) {
-                dataToSend = stdout;
-                dataToSend = dataToSend == 'true' ? 1 : 0;
-                res.json({ result: dataToSend });
-                return;
-            }
-            else if (err) {
-                res.status(500).json({ msg: "Some error occured. Please try again later", err: err.message });
-                return;
-            }
-            else {
-                res.status(500).json({ msg: "Some error occured. Please try again later", err: "" });
-
-            }
-        });
-        // collect data from script
-        // python.stdout.on('data', function (data) {
-        //     console.log('Pipe data from python script ...');
-        //     dataToSend = data.toString();
-        // });
-        // // in close event we are sure that stream from child process is closed
-        // python.on('close', (code) => {
-        //     console.log(`child process close all stdio with code ${code}`);
-        //     // send data to browser
-        //     res.json({ checkIp: dataToSend })
-        // });
-
-
-
-    } catch (error) {
-        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
-    }
-
-});
 /** VPN List Check — custom list file (vpn-ips.txt). Creates file with sample data if missing.
  * Return format: { result: 0 or 1, matchedIP: "..." }
  */
@@ -908,20 +797,5 @@ router.post('/checkonlinedata', async (req, res) => {
         });
     }
 });
-
-
-router.route('/getrealip').post(function (req, res) {
-    try {
-        // need access to IP address here
-        var ip = (req.headers['x-forwarded-for'] || '').split(',').pop().trim() ||
-            req.connection.remoteAddress ||
-            req.socket.remoteAddress ||
-            req.connection.socket.remoteAddress
-        console.log(ip, req.headers);
-        res.json({ ip: ip });
-    } catch (error) {
-        res.status(500).json({ msg: "Some error occured. Please try again later", err: error.message });
-    }
-})
 
 module.exports = router;

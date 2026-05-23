@@ -2,7 +2,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, 'config.env'
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
-const path = require('path');
+// const path = require('path');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -13,6 +13,7 @@ const hpp = require('hpp');
 
 const app = express();
 const port = parseInt(process.env.PORT, 10) || 5000;
+// console.log(typeof(process.env.PORT));
 
 //Global API limiter
 const globalLimiter = rateLimit({
@@ -21,7 +22,7 @@ const globalLimiter = rateLimit({
   message: 'Too many req for this IP, please try again after 15 minutes'
 })
 
-  app.use(globalLimiter);
+app.use(globalLimiter);
 
 //manually disable  "x-powered-by - express" so protect that application tech stack
 app.disable('x-powered-by');
@@ -40,6 +41,8 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+//“Convert incoming form data into a readable JavaScript object.”  //extended: true => Allows nested objects
 app.use(express.urlencoded({ extended: true }));
 
 //NOSQL injection protection
@@ -51,6 +54,7 @@ app.use(xss());
 //prevent http parameter pollution
 app.use(hpp());
 
+//The express-fileupload package is used to handle file uploads from the frontend to the server easily.
 app.use(fileUpload());
 
 
