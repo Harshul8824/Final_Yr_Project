@@ -1,30 +1,60 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, 'config.env') });
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
-const path = require('path');
+// const path = require('path');
 const mongoose = require('mongoose');
-
-// Load .env first; then config.env so config.env overrides
-require('dotenv').config();
-require('dotenv').config({ path: path.join(__dirname, 'config.env') });
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
 
 
 const app = express();
 const port = parseInt(process.env.PORT, 10) || 5000;
+// console.log(typeof(process.env.PORT));
 
-// app.use(cors());
+//Global API limiter
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many req for this IP, please try again after 15 minutes'
+})
+
+app.use(globalLimiter);
+
+//manually disable  "x-powered-by - express" so protect that application tech stack
+app.disable('x-powered-by');
+
+//security middleware
+app.use(helmet());  //sanitize http headers
+
 app.use(cors({
   origin: [
-    'http://localhost:3000',
-    'https://your-vercel-app.vercel.app', // apna vercel URL daalo
-    '*' // ya temporarily sab allow karo
+    'https://final-yr-project-three.vercel.app',
+    'http://localhost:3000'
   ],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
+
+//“Convert incoming form data into a readable JavaScript object.”  //extended: true => Allows nested objects
 app.use(express.urlencoded({ extended: true }));
+
+//NOSQL injection protection
+app.use(mongoSanitize());
+
+//xss clean
+app.use(xss());
+
+//prevent http parameter pollution
+app.use(hpp());
+
+//The express-fileupload package is used to handle file uploads from the frontend to the server easily.
 app.use(fileUpload());
 
 
@@ -34,7 +64,7 @@ const batchProcess = require('./routes/batchProcess');
 const analytics = require('./routes/analytics');
 const advancedSearch = require('./routes/advancedSearch');
 const auth = require('./routes/auth');
-
+const history = require('./routes/history');
 
 app.use('/api/whois', whois);
 app.use('/api/vpndetect', vpndetect);
@@ -42,6 +72,7 @@ app.use('/api/batchprocess', batchProcess);
 app.use('/api/analytics', analytics);
 app.use('/api/advancedsearch', advancedSearch);
 app.use('/api/auth', auth);
+app.use('/api/history', history);
 
 
 
@@ -71,10 +102,14 @@ async function start() {
     process.exit(1);
   }
 
-  app.listen(port, () => {
-    console.log(`Server is running on port: ${port}`);
-    console.log(`MERN Stack VPN Detection System - Backend Ready!`);
-  });
+  if (process.env.NODE_ENV !== 'test') {
+    app.listen(port, () => {
+      console.log(`Server is running on port: ${port}`);
+      console.log(`MERN Stack VPN Detection System - Backend Ready!`);
+    });
+  }
 }
 
 start();
+
+module.exports = app;

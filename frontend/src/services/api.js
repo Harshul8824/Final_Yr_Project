@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api';
-// const API_BASE_URL = 'https://final-yr-project-1-v8hj.onrender.com/api';
+// const API_BASE_URL = 'https://final-yr-project-lngt.onrender.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -84,7 +84,7 @@ export const vpnDetectionService = {
     return response.data;
   },
 
-  // ML intel score removed - using MERN stack only
+
 
   ipSearch: async (host) => {
     const response = await api.post('/vpndetect/ipsearch', { host });
@@ -142,10 +142,10 @@ export const batchProcessService = {
 };
 
 export const analyticsService = {
-  getAllAnalytics: async () => {
-    const response = await api.get('/analytics/getallanalytics');
+  getDashboard: async () => {
+    const response = await api.get('/analytics/dashboard');
     return response.data;
-  },
+  }
 };
 
 export const advancedSearchService = {
@@ -158,6 +158,21 @@ export const advancedSearchService = {
     const response = await api.post('/advancedsearch/fullscan', { host });
     return response.data;
   },
+};
+
+export const historyService = {
+  save: async (data) => {
+    const response = await api.post('/history/save', data);
+    return response.data;
+  },
+  getMyHistory: async () => {
+    const response = await api.get('/history/myhistory');
+    return response.data;
+  },
+  clearHistory: async () => {
+    const response = await api.delete('/history/clear');
+    return response.data;
+  }
 };
 
 export default api;

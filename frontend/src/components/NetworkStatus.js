@@ -8,8 +8,9 @@ const NetworkStatus = () => {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        const response = await fetch('https://final-year-project-6v7g.onrender.com/api', {
-          method: 'GET',
+        const API_BASE_URL = 'http://localhost:5000/api';
+        const response = await fetch(`${API_BASE_URL}/whois/getrecord`, { // Just ping to check route availability
+          method: 'OPTIONS',
           timeout: 5000,
         });
         if (response.ok) {

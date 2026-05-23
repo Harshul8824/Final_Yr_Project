@@ -167,18 +167,19 @@ function buildSimplifiedWhois({ host, whoisResult, dnsResult }) {
 
     return response;
 }
-/**
- * Sanitize and validate host input
- * @param {String} host 
- */
+
+//Sanitize and validate host input
+// parameter host is string 
+ 
+
 function sanitizeHost(host) {
     if (!host || typeof host !== 'string') {
         return null;
     }
-    
-    // Remove any potentially dangerous characters
+
+    // Remove any potentially dangerous characters (remove whitespaces)
     host = host.trim();
-    
+
     // Check for suspicious patterns
     const suspiciousPatterns = [
         /[<>'"&]/g,  // HTML/XML injection
@@ -190,34 +191,69 @@ function sanitizeHost(host) {
         /eval/gi,  // Eval function
         /expression/gi  // CSS expression
     ];
-    
+
     for (let pattern of suspiciousPatterns) {
         if (pattern.test(host)) {
             return null;
         }
     }
-    
+
     // Check length
     if (host.length > 253) { // Max domain length
         return null;
     }
-    
+
     return host;
 }
 
-/**
- * Validate host format
- * @param {String} host 
- */
+
+
+function isValidDomain(host) {
+    // 1. Empty check
+    if (!host) return false;
+
+    // 2. Should not be IP
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return false;
+
+    // 3. Split by dot
+    const parts = host.split(".");
+
+    // Must have at least 2 parts (domain + TLD)
+    if (parts.length < 2) return false;
+
+    // 4. Validate each part
+    for (let part of parts) {
+        if (!part) return false; // empty (e.g. "goo..com")
+
+        // Only allow letters, numbers, hyphen
+        for (let ch of part) {
+            if (!/[a-zA-Z0-9-]/.test(ch)) return false;
+        }
+
+        // Cannot start or end with '-'
+        if (part.startsWith("-") || part.endsWith("-")) return false;
+    }
+
+    // 5. Check TLD (last part)
+    const tld = parts[parts.length - 1];
+    if (tld.length < 2) return false;
+
+    return true;
+}
+
+
 function validateHost(host) {
     // Check for valid IP address
     if (utils.isValidIPaddress(host)) {
         return true;
     }
-    
+
     // Check for valid domain format
-    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+    const domainRegex = /^(?!\d+\.\d+\.\d+\.\d+$)([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
     return domainRegex.test(host);
+    
+    //no regex
+    // return isValidDomain(host);
 }
 
 /**
@@ -242,32 +278,33 @@ function dnsLookupWithTimeout(host, timeoutMs = 5000) {
     });
 }
 
-router.route('/getrecord').post(async(req, res) => {
+router.route('/getrecord').post(async (req, res) => {
     // Set response timeout
     res.setTimeout(30000, () => {
         if (!res.headersSent) {
-            res.status(408).json({ 
-                msg: "Request timeout. Please try again with a valid host.", 
-                error: "TIMEOUT" 
+            res.status(408).json({
+                msg: "Request timeout. Please try again with a valid host.",
+                error: "TIMEOUT"
             });
         }
     });
 
     try {
+
         // Validate request body
         if (!req.body || typeof req.body !== 'object') {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 msg: "Invalid request body. Please provide a valid JSON object.",
                 error: "INVALID_BODY"
             });
         }
 
         let host = req.body.host;
-        
+
         // Sanitize input
         host = sanitizeHost(host);
         if (!host) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 msg: "Invalid or suspicious host input. Please provide a valid hostname or IP address.",
                 error: "INVALID_HOST"
             });
@@ -275,52 +312,53 @@ router.route('/getrecord').post(async(req, res) => {
 
         // Validate host format
         if (!validateHost(host)) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 msg: "Invalid host format. Please provide a valid hostname or IP address.",
                 error: "INVALID_FORMAT"
             });
         }
 
         // Extract hostname if it's a URL
-        if (!utils.isValidIPaddress(host)) {
-            host = utils.extractHostname(host);
-            if (!host) {
-                return res.status(400).json({ 
-                    msg: "Could not extract valid hostname from input.",
-                    error: "EXTRACTION_FAILED"
-                });
-            }
-        }
+        // if (!utils.isValidIPaddress(host)) {
+        //     host = utils.extractHostname(host);
+        //     if (!host) {
+        //         return res.status(400).json({
+        //             msg: "Could not extract valid hostname from input.",
+        //             error: "EXTRACTION_FAILED"
+        //         });
+        //     }
+        // }
 
         console.log(`Processing WHOIS request for: ${host}`);
 
         // Get WHOIS data with timeout and fallback
         let whoisResult;
         try {
-            const whoisPromise = whoisjson(host, { 
-                follow: 3, 
-                timeout: 15000 
+            const whoisPromise = whoisjson(host, {
+                follow: 3,
+                timeout: 15000
             });
-            const timeoutPromise = new Promise((_, reject) => 
+            const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('WHOIS lookup timeout')), 15000)
             );
 
+            //jo promise phle resolve/reject hoga whi result milega
             whoisResult = await Promise.race([whoisPromise, timeoutPromise]);
         } catch (whoisError) {
             console.log(`Primary WHOIS lookup failed for ${host}:`, whoisError.message);
-            
+
             // Try with alternative server for .in domains
             if (host.endsWith('.in') || host.endsWith('.ac.in') || host.endsWith('.co.in')) {
                 console.log('Attempting fallback WHOIS server for .in domain...');
                 try {
-                    const fallbackPromise = whoisjson(host, { 
+                    const fallbackPromise = whoisjson(host, {
                         server: 'whois.inregistry.net',
-                        timeout: 15000 
+                        timeout: 15000
                     });
-                    const timeoutPromise = new Promise((_, reject) => 
+                    const timeoutPromise = new Promise((_, reject) =>
                         setTimeout(() => reject(new Error('Fallback WHOIS lookup timeout')), 15000)
                     );
-                    
+
                     whoisResult = await Promise.race([fallbackPromise, timeoutPromise]);
                 } catch (fallbackError) {
                     console.log(`Fallback WHOIS lookup also failed:`, fallbackError.message);
@@ -353,7 +391,7 @@ router.route('/getrecord').post(async(req, res) => {
         }
 
         if (!whoisResult) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 msg: "No WHOIS data found for the provided host.",
                 error: "NO_DATA"
             });
@@ -362,31 +400,33 @@ router.route('/getrecord').post(async(req, res) => {
         // Get DNS information with timeout
         let dnsResult = null;
         try {
+            //get 1. ip address 2. IPV4/IPV6
             dnsResult = await dnsLookupWithTimeout(host, 5000);
         } catch (dnsError) {
             console.log(`DNS lookup failed for ${host}:`, dnsError.message);
         }
 
         const simplified = buildSimplifiedWhois({ host, whoisResult, dnsResult });
+        // console.log(simplified);
         res.json(simplified);
 
     } catch (error) {
         console.error('WHOIS Error:', error);
-        
+
         if (error.message.includes('timeout')) {
-            res.status(408).json({ 
+            res.status(408).json({
                 msg: "Request timeout. The host might be unreachable or invalid.",
                 error: "TIMEOUT",
                 details: error.message
             });
         } else if (error.message.includes('ENOTFOUND') || error.message.includes('ENODATA')) {
-            res.status(404).json({ 
+            res.status(404).json({
                 msg: "Host not found. Please check the hostname or IP address.",
                 error: "HOST_NOT_FOUND",
                 details: error.message
             });
         } else {
-            res.status(500).json({ 
+            res.status(500).json({
                 msg: "An error occurred while processing the request. Please try again later.",
                 error: "INTERNAL_ERROR",
                 details: error.message

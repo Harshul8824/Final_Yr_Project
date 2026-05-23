@@ -20,6 +20,53 @@ Final_Yr_Project/
 └── README.md              # This file
 ```
 
+## 📊 System Architecture
+
+```mermaid
+graph TD
+    Client("👨‍💻 User Browser") -->|"HTTP Requests"| Frontend
+    
+    subgraph "🎨 React Frontend"
+        Frontend["React App"]
+        Dashboard["Dashboard View"]
+        VPNDetectUI["VPN & IP Analysis UI"]
+        BatchProcUI["Batch Upload UI"]
+        AnalyticsUI["Analytics Dashboard"]
+        Frontend --> Dashboard
+        Frontend --> VPNDetectUI
+        Frontend --> BatchProcUI
+        Frontend --> AnalyticsUI
+    end
+
+    Frontend -- "REST API" --> BackendAPI
+
+    subgraph "⚙️ Node.js / Express Backend"
+        BackendAPI["Express API Router"]
+        VPNDetectRouter["VPN Detection Engine"]
+        WHOISRouter["WHOIS Engine"]
+        NetworkScanRouter["Network Scanner"]
+        BatchProcEngine["Batch Processing Engine"]
+        
+        BackendAPI --> VPNDetectRouter
+        BackendAPI --> WHOISRouter
+        BackendAPI --> NetworkScanRouter
+        BackendAPI --> BatchProcEngine
+    end
+
+    subgraph "🔒 External APIs & Data Sources"
+        IPQualityScore["IPQualityScore API"]
+        GetIPIntel["GetIPIntel API"]
+        LocalFiles[("Local CSV/TXT Datasets<br/>(vpn-ips.txt etc.)")]
+        MongoDB[("MongoDB Database<br/>(IPHistory, Users, Analytics)")]
+        
+        VPNDetectRouter -.->|"Query"| IPQualityScore
+        VPNDetectRouter -.->|"Query"| GetIPIntel
+        VPNDetectRouter -->|"Lookup"| LocalFiles
+        BatchProcEngine -->|"Bulk Lookup"| LocalFiles
+        BackendAPI -->|"Read/Write logs"| MongoDB
+    end
+```
+
 ## 🚀 Quick Start
 
 ### Backend Setup
@@ -57,12 +104,6 @@ npm start
 - Error boundary management
 - CORS configuration
 
-### ML Integration
-- Python scripts for ML model training
-- Real-time prediction APIs
-- Batch processing capabilities
-- Analytics and logging
-
 ## 🎨 Frontend Features
 
 ### Components
@@ -95,20 +136,6 @@ npm start
 - Secure API communication
 - Error boundary handling
 - CSRF protection
-
-## 📊 ML Pipeline
-
-### Data Processing
-- CSV data ingestion
-- Feature extraction
-- Model training with scikit-learn
-- Real-time prediction
-- Batch processing
-
-### Models
-- OneClassSVM for anomaly detection
-- OneHotEncoder for categorical data
-- Model persistence with joblib
 
 ## 🧪 Testing
 
@@ -149,6 +176,7 @@ npm test
 ```env
 # Backend
 PORT=5000
+MONGO_URI=your_mongodb_connection_string
 IP_QUALITY_SCORE_API_KEY=your_key
 GET_IP_INTEL_CONTACT_EMAIL=your_email
 
@@ -157,27 +185,45 @@ REACT_APP_API_URL=http://localhost:5000/api
 ```
 
 ### Dependencies
-- **Backend**: Express, Axios, CORS, LibNmap, IP2Proxy
+- **Backend**: Express, Mongoose, Axios, CORS, LibNmap, IP2Proxy
 - **Frontend**: React.js, JavaScript, Custom CSS, Axios
-- **Database**: File-based storage (no external database required)
+- **Database**: MongoDB (Mongoose ODM for User Auth, IP History & Analytics)
 
 ## 🚀 Deployment
 
-### Backend Deployment
-1. Install dependencies: `npm install`
-2. Set environment variables
-3. Start server: `npm start`
+### 🌐 Frontend Deployment (Vercel)
+Vercel is the recommended platform for deploying the React frontend.
 
-### Frontend Deployment
-1. Install dependencies: `npm install`
-2. Build: `npm run build`
-3. Serve static files
+1. **Push your code** to a GitHub repository.
+2. Create a free account on [Vercel](https://vercel.com/) and link it to your GitHub.
+3. In Vercel, click "Add New..." -> "Project" and import your repository.
+4. In the "Configure Project" section:
+   - **Framework Preset**: Create React App (or Vercel will auto-detect it)
+   - **Root Directory**: Select the `frontend` folder.
+   - **Environment Variables**: Add `REACT_APP_API_URL` and set its value to your deployed backend URL.
+5. Click **Deploy**. Your frontend will be live in minutes.
+
+### ☁️ Backend Deployment (Render)
+Render is an excellent free-tier service for hosting the Node.js/Express backend.
+
+1. Create a free account on [Render](https://render.com/) and link your GitHub.
+2. From the Render Dashboard, click "New" -> "Web Service".
+3. Connect your GitHub repository.
+4. Fill in the deployment details:
+   - **Root Directory**: `backend`
+   - **Environment**: Node
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start` (or `node server.js`)
+5. Under **Environment Variables**, add all keys from your `.env` file:
+   - `MONGO_URI`
+   - `IP_QUALITY_SCORE_API_KEY`
+   - `GET_IP_INTEL_CONTACT_EMAIL`
+6. Click **Create Web Service**. Once deployed, copy the Render URL and update your Vercel `REACT_APP_API_URL` variable.
 
 ### Production Considerations
-- Environment variable configuration
-- Database setup for ML models
-- File storage for batch processing
-- Monitoring and logging
+- **CORS Configuration**: Ensure your `backend/server.js` explicitly allows requests from your new Vercel frontend URL in its CORS settings.
+- **Environment Variables**: Never commit API keys to version control; always add them directly in Vercel and Render dashboards.
+- **File Storage**: If using the free tier on Render, local files (like batch processing uploads) are wiped on restarts. Consider cloud storage integrations for persistence.
 
 ## 📝 API Documentation
 
@@ -208,8 +254,7 @@ FormData with 'ipFile'
 ### Common Issues
 1. **CORS Errors**: Check backend CORS configuration
 2. **API Timeouts**: Verify timeout settings
-3. **ML Model Errors**: Ensure Python dependencies
-4. **Build Errors**: Clear node_modules and reinstall
+3. **Build Errors**: Clear node_modules and reinstall
 
 ### Debug Mode
 - Backend: Set `DEBUG=true` in environment
@@ -221,12 +266,10 @@ FormData with 'ipFile'
 ### System Metrics
 - Total data points processed
 - Training vs test data split
-- ML model performance
 - API response times
 - Error rates
 
 ### Logging
-- ML model training logs
 - Data generation logs
 - API request/response logs
 - Error tracking
@@ -236,8 +279,6 @@ FormData with 'ipFile'
 ### Planned Features
 - Real-time monitoring dashboard
 - Advanced ML models
-- Database integration
-- User authentication
 - API rate limiting
 - Comprehensive testing suite
 
@@ -262,4 +303,4 @@ This project is developed for educational purposes as part of a final year proje
 
 ---
 
-**Status**: ✅ Pure MERN Stack Complete | ✅ ML Removed | ✅ All Features Working
+**Status**: ✅ Pure MERN Stack Complete | ✅ Cybersecurity | ✅ All Features Working
